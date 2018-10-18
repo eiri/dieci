@@ -12,13 +12,17 @@ deps: ## install deps
 	go get -t ./...
 
 .PHONY: test
-test: ## run tests
+test: clean-data ## run tests
 	go test -v ./...
 
 .PHONY: clean
-clean: ## clean up
+clean: clean-data ## clean up
 	go clean
 	rm -f coverage.out
+
+.PHONY: clean-data
+clean-data: ## remove storage files from the test runs
+	rm -f *.data
 
 .PHONY: format
 format: ## format code
