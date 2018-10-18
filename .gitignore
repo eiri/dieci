@@ -1,0 +1,18 @@
+# Editors
+*.sublime-project
+*.sublime-workspace
+*.swp
+
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+*.tgz
+*.zip
+
+# Test binary, build with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
