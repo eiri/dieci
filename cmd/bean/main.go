@@ -2,9 +2,11 @@
 package main
 
 import (
-    "github.com/eiri/beansdb"
+	_ "github.com/eiri/beansdb"
+	"log"
 )
 
 func main() {
-    beansdb.New()
+	log.SetFlags(log.Lshortfile)
+	log.Print("ohai")
 }

@@ -1,10 +1,10 @@
 package main
 
 import (
-    "testing"
+	"testing"
 )
 
 // TestNoop so go test wouldn't complain
 func TestNoop(t *testing.T) {
-    t.Log("reserved for CLI testing")
+	t.Log("reserved for CLI testing")
 }
