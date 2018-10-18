@@ -26,4 +26,4 @@ format: ## format code
 
 .PHONY: run
 run: ## run for debug
-	@go run cmd/main.go
+	@go run cmd/bean/main.go
