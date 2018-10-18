@@ -1,0 +1,13 @@
+language: go
+go:
+  - "1.10.x"
+  - "1.11"
+os:
+  - linux
+  - osx
+sudo: false
+install:
+  - go get -t ./...
+script:
+  - go build
+  - go test -v ./...
