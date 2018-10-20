@@ -6,7 +6,7 @@ Write-once data store.
 
 ## Summary
 
-This is an experimental permanent data block store with _write-once_ policy infuenced by Plain 9 [Venti](https://en.wikipedia.org/wiki/Venti) storage system.
+This is an experimental immutable binary store with _write-once_ policy infuenced by Plain 9 [Venti](https://en.wikipedia.org/wiki/Venti) storage system.
 
 ## Licence
 
