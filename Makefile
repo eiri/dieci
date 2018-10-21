@@ -15,6 +15,10 @@ deps: ## install deps
 test: clean-data ## run tests
 	go test -v ./...
 
+.PHONY: bench
+bench: ## run a micro benchmark
+	go test -bench=. -benchmem
+
 .PHONY: clean
 clean: clean-data ## clean up
 	go clean

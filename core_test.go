@@ -62,7 +62,26 @@ func TestWrite(t *testing.T) {
 			t.Errorf("Expecting score be %d bytes long", beansdb.ScoreSize)
 		}
 		kvs[i] = kv{score[:], doc}
-		// double-write
+	}
+}
+
+// BenchmarkWrite for an iterative improvement
+func BenchmarkWrite(b *testing.B) {
+	s, err := beansdb.New()
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer s.Delete()
+	for n := 0; n < b.N; n++ {
+		docSize := 1024
+		doc := make([]byte, docSize)
+		_, err = rand.Read(doc)
+		if err == nil {
+			_, err = s.Write(doc)
+		}
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
