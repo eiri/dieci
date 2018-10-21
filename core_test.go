@@ -1,6 +1,7 @@
 package beansdb_test
 
 import (
+	"crypto/md5"
 	"crypto/rand"
 	"github.com/eiri/beansdb"
 	"os"
@@ -102,6 +103,22 @@ func TestRead(t *testing.T) {
 		}
 		if !reflect.DeepEqual(doc, kv[1]) {
 			t.Error("Expecting store to return stored data")
+		}
+	}
+}
+
+// BenchmarkRead for an iterative improvement
+func BenchmarkRead(b *testing.B) {
+	s, err := beansdb.Open("testdata/words.data")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer s.Close()
+	score := md5.Sum([]byte("witchwork"))
+	for n := 0; n < b.N; n++ {
+		_, err := s.Read(score)
+		if err != nil {
+			b.Fatal(err)
 		}
 	}
 }

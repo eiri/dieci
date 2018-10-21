@@ -15,14 +15,18 @@ deps: ## install deps
 test: clean-data ## run tests
 	go test -v ./...
 
+testdata/words.data:
+	cd testdata; go run make_fixtures.go
+
 .PHONY: bench
-bench: ## run a micro benchmark
+bench: testdata/words.data ## run a micro benchmark
 	go test -bench=. -benchmem
 
 .PHONY: clean
 clean: clean-data ## clean up
 	go clean
 	rm -f coverage.out
+	rm -f testdata/words.data
 
 .PHONY: clean-data
 clean-data: ## remove storage files from the test runs
