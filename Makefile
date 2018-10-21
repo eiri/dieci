@@ -27,7 +27,3 @@ clean-data: ## remove storage files from the test runs
 .PHONY: format
 format: ## format code
 	go fmt -x *.go
-
-.PHONY: run
-run: ## run for debug
-	@go run cmd/bean/main.go
