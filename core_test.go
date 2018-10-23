@@ -70,9 +70,6 @@ func TestWrite(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(score) != beansdb.ScoreSize {
-			t.Errorf("Expecting score be %d bytes long", beansdb.ScoreSize)
-		}
 		kvs[i] = kv{score[:], doc}
 		// test deduplication
 		statBefore, _ := s.Stat()
@@ -119,7 +116,7 @@ func TestRead(t *testing.T) {
 	defer s.Close()
 	for _, i := range [5]int{1, 2, 0, 4, 3} {
 		kv := kvs[i]
-		var score [beansdb.ScoreSize]byte
+		var score beansdb.Score
 		copy(score[:], kv[0])
 		doc, err := s.Read(score)
 		if err != nil {

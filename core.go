@@ -12,9 +12,18 @@ import (
 // ScoreSize is the size of score in bytes
 const ScoreSize = 16
 
+// Score is type alias for score representation
+type Score [ScoreSize]byte
+
+// addr is index's address type alias
+type addr [2]int
+
+// index is index type alias
+type index map[Score]addr
+
 // Store represents a data store.
 type Store struct {
-	idx map[[ScoreSize]byte][2]int
+	idx index
 	eof int
 	*os.File
 }
@@ -42,17 +51,17 @@ func Open(storeName string) (s *Store, err error) {
 		return
 	}
 	// read idx
-	idx := make(map[[ScoreSize]byte][2]int)
+	idx := make(index)
 	pos := 0
 	buf := [ScoreSize + 1]byte{}
 	for {
 		if _, err := f.Read(buf[:]); err == io.EOF {
 			break
 		}
-		var score [ScoreSize]byte
+		var score Score
 		copy(score[:], buf[:ScoreSize])
 		len := int(buf[ScoreSize])
-		idx[score] = [2]int{len, pos + ScoreSize + 1}
+		idx[score] = addr{len, pos + ScoreSize + 1}
 		pos += ScoreSize + 1 + len
 		_, err = f.Seek(int64(len), 1)
 		if err != nil {
@@ -66,14 +75,13 @@ func Open(storeName string) (s *Store, err error) {
 }
 
 // Read a data for a given score
-func (s *Store) Read(score [ScoreSize]byte) (b []byte, err error) {
-	val, ok := s.idx[score]
+func (s *Store) Read(score Score) (b []byte, err error) {
+	addr, ok := s.idx[score]
 	if !ok {
 		err = fmt.Errorf("Unknown score %x", score)
 		return
 	}
-	len := val[0]
-	pos := val[1]
+	len, pos := addr[0], addr[1]
 	_, err = s.File.Seek(int64(pos), 0)
 	if err != nil {
 		return
@@ -84,7 +92,7 @@ func (s *Store) Read(score [ScoreSize]byte) (b []byte, err error) {
 }
 
 // Write given data and return it's score
-func (s *Store) Write(b []byte) (score [ScoreSize]byte, err error) {
+func (s *Store) Write(b []byte) (score Score, err error) {
 	score = md5.Sum(b)
 	if _, ok := s.idx[score]; ok {
 		return
@@ -100,7 +108,7 @@ func (s *Store) Write(b []byte) (score [ScoreSize]byte, err error) {
 	if err != nil {
 		return
 	}
-	s.idx[score] = [2]int{len, pos}
+	s.idx[score] = addr{len, pos}
 	s.eof += blockSize
 	return
 }
