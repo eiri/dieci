@@ -74,6 +74,19 @@ func TestWrite(t *testing.T) {
 			t.Errorf("Expecting score be %d bytes long", beansdb.ScoreSize)
 		}
 		kvs[i] = kv{score[:], doc}
+		// test deduplication
+		statBefore, _ := s.Stat()
+		score2, err := s.Write(doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		statAfter, _ := s.Stat()
+		if score != score2 {
+			t.Errorf("Expecting score be the same %x != %x", score, score2)
+		}
+		if statBefore.Size() != statAfter.Size() {
+			t.Errorf("Expecting store size be the same")
+		}
 	}
 }
 

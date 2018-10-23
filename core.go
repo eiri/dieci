@@ -87,6 +87,9 @@ func (s *Store) Read(score [ScoreSize]byte) (b []byte, err error) {
 // Write given data and return it's score
 func (s *Store) Write(b []byte) (score [ScoreSize]byte, err error) {
 	score = md5.Sum(b)
+	if _, ok := s.idx[score]; ok {
+		return
+	}
 	len := len(b)
 	// use buffer for now
 	buf := new(bytes.Buffer)
