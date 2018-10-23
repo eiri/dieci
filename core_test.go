@@ -94,14 +94,16 @@ func BenchmarkWrite(b *testing.B) {
 		b.Fatal(err)
 	}
 	defer s.Delete()
+	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
+		b.StopTimer()
 		docSize := 1024
 		doc := make([]byte, docSize)
 		_, err = rand.Read(doc)
+		b.StartTimer()
 		if err == nil {
 			_, err = s.Write(doc)
-		}
-		if err != nil {
+		} else {
 			b.Fatal(err)
 		}
 	}
@@ -136,6 +138,7 @@ func BenchmarkRead(b *testing.B) {
 	}
 	defer s.Close()
 	score := md5.Sum([]byte("witchwork"))
+	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		_, err := s.Read(score)
 		if err != nil {
