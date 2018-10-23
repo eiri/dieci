@@ -2,7 +2,6 @@
 package beansdb
 
 import (
-	"bytes"
 	"crypto/md5"
 	"crypto/rand"
 	"fmt"
@@ -91,17 +90,18 @@ func (s *Store) Write(b []byte) (score [ScoreSize]byte, err error) {
 		return
 	}
 	len := len(b)
-	// use buffer for now
-	buf := new(bytes.Buffer)
-	buf.Write(score[:])
-	buf.WriteByte(byte(len))
-	buf.Write(b)
-	_, err = buf.WriteTo(s.File)
+	pos := s.eof + ScoreSize + 1
+	blockSize := ScoreSize + 1 + len
+	buf := make([]byte, 0, blockSize)
+	buf = append(buf, score[:]...)
+	buf = append(buf, byte(len))
+	buf = append(buf, b...)
+	_, err = s.File.Write(buf)
 	if err != nil {
 		return
 	}
-	s.idx[score] = [2]int{len, s.eof + ScoreSize + 1}
-	s.eof += ScoreSize + 1 + len
+	s.idx[score] = [2]int{len, pos}
+	s.eof += blockSize
 	return
 }
 
