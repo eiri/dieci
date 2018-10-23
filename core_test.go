@@ -41,6 +41,17 @@ func TestOpen(t *testing.T) {
 	s.Close()
 }
 
+// BenchmarkOpen for an iterative improvement
+func BenchmarkOpen(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		s, err := beansdb.Open("testdata/words.data")
+		if err != nil {
+			b.Fatal(err)
+		}
+		s.Close()
+	}
+}
+
 // TestWrite to ensure we can write in the store
 func TestWrite(t *testing.T) {
 	kvs = make([]kv, 5)
