@@ -50,7 +50,14 @@ func Open(storeName string) (s *Store, err error) {
 	if err != nil {
 		return
 	}
-	// read idx
+	idx := buildIndex(f)
+	// reset fd and make Store
+	_, err = f.Seek(0, 0)
+	s = &Store{idx, 0, f}
+	return
+}
+
+func buildIndex(f *os.File) index {
 	idx := make(index)
 	pos := 0
 	buf := [ScoreSize + 1]byte{}
@@ -63,15 +70,12 @@ func Open(storeName string) (s *Store, err error) {
 		len := int(buf[ScoreSize])
 		idx[score] = addr{len, pos + ScoreSize + 1}
 		pos += ScoreSize + 1 + len
-		_, err = f.Seek(int64(len), 1)
+		_, err := f.Seek(int64(len), 1)
 		if err != nil {
 			break
 		}
 	}
-	// reset fd and make Store
-	_, err = f.Seek(0, 0)
-	s = &Store{idx, 0, f}
-	return
+	return idx
 }
 
 // Read a data for a given score
