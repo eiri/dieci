@@ -87,7 +87,7 @@ func buildIndex(f *os.File) index {
 func (s *Store) Read(score Score) (b []byte, err error) {
 	addr, ok := s.idx[score]
 	if !ok {
-		err = fmt.Errorf("Unknown score %x", score)
+		err = fmt.Errorf("Unknown score %s", score)
 		return
 	}
 	len, pos := addr[0], addr[1]
