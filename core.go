@@ -4,6 +4,7 @@ package beansdb
 import (
 	"crypto/md5"
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +15,10 @@ const ScoreSize = 16
 
 // Score is type alias for score representation
 type Score [ScoreSize]byte
+
+func (s Score) String() string {
+	return hex.EncodeToString(s[:])
+}
 
 // addr is index's address type alias
 type addr [2]int
@@ -95,9 +100,15 @@ func (s *Store) Read(score Score) (b []byte, err error) {
 	return
 }
 
+// MakeScore generated a score for a given data
+func (s *Store) MakeScore(b []byte) Score {
+	score := md5.Sum(b)
+	return score
+}
+
 // Write given data and return it's score
 func (s *Store) Write(b []byte) (score Score, err error) {
-	score = md5.Sum(b)
+	score = s.MakeScore(b)
 	if _, ok := s.idx[score]; ok {
 		return
 	}

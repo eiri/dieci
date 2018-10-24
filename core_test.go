@@ -1,7 +1,6 @@
 package beansdb_test
 
 import (
-	"crypto/md5"
 	"crypto/rand"
 	"github.com/eiri/beansdb"
 	"os"
@@ -9,10 +8,13 @@ import (
 	"testing"
 )
 
-type kv [2][]byte
+type kv struct {
+	score beansdb.Score
+	data  []byte
+}
 
 var kvs []kv
-var store, score string
+var store string
 
 // TestNew to ensure we can create a new storage
 func TestNew(t *testing.T) {
@@ -70,7 +72,7 @@ func TestWrite(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		kvs[i] = kv{score[:], doc}
+		kvs[i] = kv{score: score, data: doc}
 		// test deduplication
 		statBefore, _ := s.Stat()
 		score2, err := s.Write(doc)
@@ -79,7 +81,7 @@ func TestWrite(t *testing.T) {
 		}
 		statAfter, _ := s.Stat()
 		if score != score2 {
-			t.Errorf("Expecting score be the same %x != %x", score, score2)
+			t.Errorf("Expecting score be the same %s != %s", score, score2)
 		}
 		if statBefore.Size() != statAfter.Size() {
 			t.Errorf("Expecting store size be the same")
@@ -118,13 +120,11 @@ func TestRead(t *testing.T) {
 	defer s.Close()
 	for _, i := range [5]int{1, 2, 0, 4, 3} {
 		kv := kvs[i]
-		var score beansdb.Score
-		copy(score[:], kv[0])
-		doc, err := s.Read(score)
+		doc, err := s.Read(kv.score)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !reflect.DeepEqual(doc, kv[1]) {
+		if !reflect.DeepEqual(doc, kv.data) {
 			t.Error("Expecting store to return stored data")
 		}
 	}
@@ -137,7 +137,7 @@ func BenchmarkRead(b *testing.B) {
 		b.Fatal(err)
 	}
 	defer s.Close()
-	score := md5.Sum([]byte("witchwork"))
+	score := s.MakeScore([]byte("witchwork"))
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		_, err := s.Read(score)
