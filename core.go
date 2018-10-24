@@ -97,6 +97,13 @@ func (s *Store) Read(score Score) (b []byte, err error) {
 	}
 	b = make([]byte, len)
 	_, err = s.File.Read(b)
+	if err != nil {
+		return
+	}
+	if score != s.MakeScore(b) {
+		b = []byte{}
+		err = fmt.Errorf("Checksum failure")
+	}
 	return
 }
 
