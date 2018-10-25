@@ -4,6 +4,7 @@ package beansdb
 import (
 	"crypto/md5"
 	"crypto/rand"
+	_ "encoding/gob"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -28,9 +29,9 @@ type index map[Score]addr
 
 // Store represents a data store.
 type Store struct {
-	idx index
-	eof int
-	*os.File
+	idx  index
+	eof  int
+	data *os.File
 }
 
 // New creates a new empty storage
@@ -58,7 +59,7 @@ func Open(storeName string) (s *Store, err error) {
 	idx := buildIndex(f)
 	// reset fd and make Store
 	_, err = f.Seek(0, 0)
-	s = &Store{idx, 0, f}
+	s = &Store{idx: idx, eof: 0, data: f}
 	return
 }
 
@@ -83,6 +84,11 @@ func buildIndex(f *os.File) index {
 	return idx
 }
 
+// Name returns name of a store
+func (s *Store) Name() string {
+	return s.data.Name()
+}
+
 // Read a data for a given score
 func (s *Store) Read(score Score) (b []byte, err error) {
 	addr, ok := s.idx[score]
@@ -91,12 +97,12 @@ func (s *Store) Read(score Score) (b []byte, err error) {
 		return
 	}
 	len, pos := addr[0], addr[1]
-	_, err = s.File.Seek(int64(pos), 0)
+	_, err = s.data.Seek(int64(pos), 0)
 	if err != nil {
 		return
 	}
 	b = make([]byte, len)
-	_, err = s.File.Read(b)
+	_, err = s.data.Read(b)
 	if err != nil {
 		return
 	}
@@ -126,7 +132,7 @@ func (s *Store) Write(b []byte) (score Score, err error) {
 	buf = append(buf, score[:]...)
 	buf = append(buf, byte(len))
 	buf = append(buf, b...)
-	_, err = s.File.Write(buf)
+	_, err = s.data.Write(buf)
 	if err != nil {
 		return
 	}
@@ -135,8 +141,16 @@ func (s *Store) Write(b []byte) (score Score, err error) {
 	return
 }
 
+// Close provided storage
+func (s *Store) Close() error {
+	return s.data.Close()
+}
+
 // Delete provided storage
 func (s *Store) Delete() error {
-	s.Close()
-	return os.Remove(s.Name())
+	err := s.data.Close()
+	if err == nil {
+		return os.Remove(s.data.Name())
+	}
+	return err
 }
