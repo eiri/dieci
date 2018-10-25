@@ -74,7 +74,7 @@ func buildIndex(f *os.File) index {
 		var score Score
 		copy(score[:], buf[:ScoreSize])
 		len := int(buf[ScoreSize])
-		idx[score] = addr{len, pos + ScoreSize + 1}
+		idx[score] = addr{pos + ScoreSize + 1, len}
 		pos += ScoreSize + 1 + len
 		_, err := f.Seek(int64(len), 1)
 		if err != nil {
@@ -96,7 +96,7 @@ func (s *Store) Read(score Score) (b []byte, err error) {
 		err = fmt.Errorf("Unknown score %s", score)
 		return
 	}
-	len, pos := addr[0], addr[1]
+	pos, len := addr[0], addr[1]
 	_, err = s.data.Seek(int64(pos), 0)
 	if err != nil {
 		return
@@ -136,7 +136,7 @@ func (s *Store) Write(b []byte) (score Score, err error) {
 	if err != nil {
 		return
 	}
-	s.idx[score] = addr{len, pos}
+	s.idx[score] = addr{pos, len}
 	s.eof += blockSize
 	return
 }
