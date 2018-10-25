@@ -14,7 +14,7 @@ type kv struct {
 }
 
 var kvs []kv
-var store string
+var storeName string
 
 // TestNew to ensure we can create a new storage
 func TestNew(t *testing.T) {
@@ -23,8 +23,8 @@ func TestNew(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	store = s.Name()
-	_, err = os.Stat(store)
+	storeName = s.Name()
+	_, err = os.Stat(storeName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,11 +32,11 @@ func TestNew(t *testing.T) {
 
 // TestOpen to ensure we can open an existing storage
 func TestOpen(t *testing.T) {
-	_, err := os.Stat(store)
+	_, err := os.Stat(storeName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := beansdb.Open(store)
+	s, err := beansdb.Open(storeName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func BenchmarkOpen(b *testing.B) {
 // TestWrite to ensure we can write in the store
 func TestWrite(t *testing.T) {
 	kvs = make([]kv, 5)
-	s, err := beansdb.Open(store)
+	s, err := beansdb.Open(storeName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,12 +74,12 @@ func TestWrite(t *testing.T) {
 		}
 		kvs[i] = kv{score: score, data: doc}
 		// test deduplication
-		statBefore, _ := s.Stat()
+		statBefore, _ := os.Stat(storeName)
 		score2, err := s.Write(doc)
 		if err != nil {
 			t.Fatal(err)
 		}
-		statAfter, _ := s.Stat()
+		statAfter, _ := os.Stat(storeName)
 		if score != score2 {
 			t.Errorf("Expecting score be the same %s != %s", score, score2)
 		}
@@ -113,7 +113,7 @@ func BenchmarkWrite(b *testing.B) {
 
 // TestRead to ensure we can read from the store
 func TestRead(t *testing.T) {
-	s, err := beansdb.Open(store)
+	s, err := beansdb.Open(storeName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,16 +149,16 @@ func BenchmarkRead(b *testing.B) {
 
 // TestDelete to ensure we can delete the store
 func TestDelete(t *testing.T) {
-	_, err := os.Stat(store)
+	_, err := os.Stat(storeName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := beansdb.Open(store)
+	s, err := beansdb.Open(storeName)
 	if err != nil {
 		t.Fatal(err)
 	}
 	s.Delete()
-	_, err = os.Stat(store)
+	_, err = os.Stat(storeName)
 	if !os.IsNotExist(err) {
 		t.Error("Expecting store file do not exist")
 	}
