@@ -21,6 +21,12 @@ func (s Score) String() string {
 	return hex.EncodeToString(s[:])
 }
 
+// DataFile is a handler of data file
+type DataFile struct {
+	eof int
+	*os.File
+}
+
 // addr is index's address type alias
 type addr [2]int
 
@@ -30,8 +36,7 @@ type index map[Score]addr
 // Store represents a data store.
 type Store struct {
 	idx  index
-	eof  int
-	data *os.File
+	data DataFile
 }
 
 // New creates a new empty storage
@@ -62,7 +67,8 @@ func Open(storeName string) (s *Store, err error) {
 	}
 	// reset fd and make Store
 	_, err = f.Seek(0, 0)
-	s = &Store{idx: idx, eof: 0, data: f}
+	data := DataFile{0, f}
+	s = &Store{idx: idx, data: data}
 	return
 }
 
@@ -131,17 +137,15 @@ func (s *Store) Write(b []byte) (score Score, err error) {
 		return
 	}
 	len := len(b)
-	pos := s.eof + 1
-	blockSize := len + 1
-	buf := make([]byte, 0, blockSize)
+	buf := make([]byte, 0, len+1)
 	buf = append(buf, byte(len))
 	buf = append(buf, b...)
-	_, err = s.data.Write(buf)
+	n, err := s.data.Write(buf)
 	if err != nil {
 		return
 	}
-	s.idx[score] = addr{pos, len}
-	s.eof += blockSize
+	s.idx[score] = addr{s.data.eof + 1, n - 1}
+	s.data.eof += n
 	return
 }
 
