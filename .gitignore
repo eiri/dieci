@@ -14,6 +14,7 @@
 # Test binary, build with `go test -c`
 *.test
 *.data
+*.bench
 
 # Output of the go coverage tool
 *.out
