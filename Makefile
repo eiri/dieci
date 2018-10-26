@@ -22,10 +22,19 @@ testdata/words.data:
 bench: testdata/words.data ## run a micro benchmark
 	go test -bench=. -benchmem
 
+.PHONY: benchcmp
+benchcmp: testdata/words.data ## run before and after benchmark
+	git stash
+	go test -bench=. -benchmem > before.bench
+	git stash pop
+	go test -bench=. -benchmem > after.bench
+	benchcmp before.bench after.bench
+
 .PHONY: clean
 clean: clean-data ## clean up
 	go clean
 	rm -f coverage.out
+	rm -f *.bench
 	rm -f testdata/words.data
 
 .PHONY: clean-data
