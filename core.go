@@ -56,37 +56,48 @@ func Open(storeName string) (s *Store, err error) {
 	if err != nil {
 		return
 	}
-	idx := buildIndex(f)
+	idx, err := buildIndex(f)
+	if err != nil {
+		return
+	}
 	// reset fd and make Store
 	_, err = f.Seek(0, 0)
 	s = &Store{idx: idx, eof: 0, data: f}
 	return
 }
 
-func buildIndex(f *os.File) index {
-	idx := make(index)
-	pos := 0
-	buf := [ScoreSize + 1]byte{}
+func buildIndex(f *os.File) (idx index, err error) {
+	var pos int
+	idx = make(index)
+	len := make([]byte, 1)
 	for {
-		if _, err := f.Read(buf[:]); err == io.EOF {
+		if _, err := f.Read(len); err == io.EOF {
 			break
 		}
-		var score Score
-		copy(score[:], buf[:ScoreSize])
-		len := int(buf[ScoreSize])
-		idx[score] = addr{pos + ScoreSize + 1, len}
-		pos += ScoreSize + 1 + len
-		_, err := f.Seek(int64(len), 1)
-		if err != nil {
+		buf := make([]byte, len[0])
+		if _, err := f.Read(buf); err == io.EOF {
 			break
 		}
+		score := makeScore(buf)
+		idx[score] = addr{pos + 1, int(len[0])}
+		pos += int(len[0]) + 1
 	}
-	return idx
+	return
+}
+
+func makeScore(b []byte) Score {
+	score := md5.Sum(b)
+	return score
 }
 
 // Name returns name of a store
 func (s *Store) Name() string {
 	return s.data.Name()
+}
+
+// MakeScore generated a score for a given data
+func (s *Store) MakeScore(b []byte) Score {
+	return makeScore(b)
 }
 
 // Read a data for a given score
@@ -113,12 +124,6 @@ func (s *Store) Read(score Score) (b []byte, err error) {
 	return
 }
 
-// MakeScore generated a score for a given data
-func (s *Store) MakeScore(b []byte) Score {
-	score := md5.Sum(b)
-	return score
-}
-
 // Write given data and return it's score
 func (s *Store) Write(b []byte) (score Score, err error) {
 	score = s.MakeScore(b)
@@ -126,10 +131,9 @@ func (s *Store) Write(b []byte) (score Score, err error) {
 		return
 	}
 	len := len(b)
-	pos := s.eof + ScoreSize + 1
-	blockSize := ScoreSize + 1 + len
+	pos := s.eof + 1
+	blockSize := len + 1
 	buf := make([]byte, 0, blockSize)
-	buf = append(buf, score[:]...)
 	buf = append(buf, byte(len))
 	buf = append(buf, b...)
 	_, err = s.data.Write(buf)
