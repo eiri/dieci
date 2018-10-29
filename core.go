@@ -66,35 +66,30 @@ func Open(storeName string) (s *Store, err error) {
 	if err != nil {
 		return
 	}
-	idx, err := buildIndex(f)
-	if err != io.EOF && err != nil {
-		return
-	}
-	// reset fd and make Store
-	_, err = f.Seek(0, 0)
+	idx := buildIndex(f)
 	data := DataFile{int(i.Size()), f}
 	s = &Store{idx: idx, data: data}
 	return
 }
 
-func buildIndex(f *os.File) (idx index, err error) {
+func buildIndex(f *os.File) index {
 	var pos int
-	idx = make(index)
+	idx := make(index)
 	lenBuf := make([]byte, 4)
 	for {
-		if _, err = f.Read(lenBuf); err == io.EOF {
+		if _, err := f.Read(lenBuf); err == io.EOF {
 			break
 		}
 		len := int(binary.BigEndian.Uint32(lenBuf))
 		buf := make([]byte, len)
-		if _, err = f.Read(buf); err == io.EOF {
+		if _, err := f.Read(buf); err == io.EOF {
 			break
 		}
 		score := makeScore(buf)
 		idx[score] = addr{pos + 4, len}
 		pos += len + 4
 	}
-	return
+	return idx
 }
 
 func makeScore(b []byte) Score {
@@ -120,12 +115,8 @@ func (s *Store) Read(score Score) (b []byte, err error) {
 		return
 	}
 	pos, len := addr[0], addr[1]
-	_, err = s.data.Seek(int64(pos), 0)
-	if err != nil {
-		return
-	}
 	b = make([]byte, len)
-	_, err = s.data.Read(b)
+	_, err = s.data.ReadAt(b, int64(pos))
 	if err != nil {
 		return
 	}
