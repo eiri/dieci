@@ -147,6 +147,31 @@ func BenchmarkRead(b *testing.B) {
 	}
 }
 
+// TestWriteRead to ensure we can read back written
+func TestWriteRead(t *testing.T) {
+	for i := 0; i < 5; i++ {
+		// write doc
+		s, err := beansdb.Open(storeName)
+		if err != nil {
+			t.Fatal(err)
+		}
+		before := make([]byte, 1024)
+		rand.Read(before)
+		score, err := s.Write(before)
+		if err != nil {
+			t.Fatal(err)
+		}
+		after, err := s.Read(score)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(after, before) {
+			t.Error("Expecting store to return stored data")
+		}
+		s.Close()
+	}
+}
+
 // TestDelete to ensure we can delete the store
 func TestDelete(t *testing.T) {
 	_, err := os.Stat(storeName)
