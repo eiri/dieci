@@ -62,7 +62,7 @@ func TestWrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	for i, docSize := range []int{21, 12, 42, 5, 17} {
+	for i, docSize := range []int{2100, 1200, 4200, 500, 1700} {
 		doc := make([]byte, docSize)
 		_, err = rand.Read(doc)
 		if err != nil {

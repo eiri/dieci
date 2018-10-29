@@ -4,6 +4,7 @@ package beansdb
 import (
 	"crypto/md5"
 	"crypto/rand"
+	"encoding/binary"
 	_ "encoding/gob"
 	"encoding/hex"
 	"fmt"
@@ -62,7 +63,7 @@ func Open(storeName string) (s *Store, err error) {
 		return
 	}
 	idx, err := buildIndex(f)
-	if err != nil {
+	if err != io.EOF && err != nil {
 		return
 	}
 	// reset fd and make Store
@@ -75,18 +76,19 @@ func Open(storeName string) (s *Store, err error) {
 func buildIndex(f *os.File) (idx index, err error) {
 	var pos int
 	idx = make(index)
-	len := make([]byte, 1)
+	lenBuf := make([]byte, 4)
 	for {
-		if _, err := f.Read(len); err == io.EOF {
+		if _, err = f.Read(lenBuf); err == io.EOF {
 			break
 		}
-		buf := make([]byte, len[0])
-		if _, err := f.Read(buf); err == io.EOF {
+		len := int(binary.BigEndian.Uint32(lenBuf))
+		buf := make([]byte, len)
+		if _, err = f.Read(buf); err == io.EOF {
 			break
 		}
 		score := makeScore(buf)
-		idx[score] = addr{pos + 1, int(len[0])}
-		pos += int(len[0]) + 1
+		idx[score] = addr{pos + 4, len}
+		pos += len + 4
 	}
 	return
 }
@@ -137,14 +139,14 @@ func (s *Store) Write(b []byte) (score Score, err error) {
 		return
 	}
 	len := len(b)
-	buf := make([]byte, 0, len+1)
-	buf = append(buf, byte(len))
+	buf := make([]byte, 4, len+4)
+	binary.BigEndian.PutUint32(buf[:4], uint32(len))
 	buf = append(buf, b...)
 	n, err := s.data.Write(buf)
 	if err != nil {
 		return
 	}
-	s.idx[score] = addr{s.data.eof + 1, n - 1}
+	s.idx[score] = addr{s.data.eof + 4, n - 4}
 	s.data.eof += n
 	return
 }
