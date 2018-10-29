@@ -62,13 +62,17 @@ func Open(storeName string) (s *Store, err error) {
 	if err != nil {
 		return
 	}
+	i, err := f.Stat()
+	if err != nil {
+		return
+	}
 	idx, err := buildIndex(f)
 	if err != io.EOF && err != nil {
 		return
 	}
 	// reset fd and make Store
 	_, err = f.Seek(0, 0)
-	data := DataFile{0, f}
+	data := DataFile{int(i.Size()), f}
 	s = &Store{idx: idx, data: data}
 	return
 }
