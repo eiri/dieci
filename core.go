@@ -22,12 +22,6 @@ func (s Score) String() string {
 	return hex.EncodeToString(s[:])
 }
 
-// DataFile is a handler of data file
-type DataFile struct {
-	eof int
-	*os.File
-}
-
 // addr is index's address type alias
 type addr [2]int
 
@@ -37,7 +31,8 @@ type index map[Score]addr
 // Store represents a data store.
 type Store struct {
 	idx  index
-	data DataFile
+	eof  int
+	data *os.File
 }
 
 // New creates a new empty storage
@@ -67,8 +62,7 @@ func Open(storeName string) (s *Store, err error) {
 		return
 	}
 	idx := buildIndex(f)
-	data := DataFile{int(i.Size()), f}
-	s = &Store{idx: idx, data: data}
+	s = &Store{idx: idx, eof: int(i.Size()), data: f}
 	return
 }
 
@@ -141,8 +135,8 @@ func (s *Store) Write(b []byte) (score Score, err error) {
 	if err != nil {
 		return
 	}
-	s.idx[score] = addr{s.data.eof + 4, n - 4}
-	s.data.eof += n
+	s.idx[score] = addr{s.eof + 4, n - 4}
+	s.eof += n
 	return
 }
 
