@@ -135,6 +135,10 @@ func (s *Store) Write(b []byte) (score Score, err error) {
 	if err != nil {
 		return
 	}
+	err = s.data.Sync()
+	if err != nil {
+		return
+	}
 	s.idx[score] = addr{s.eof + 4, n - 4}
 	s.eof += n
 	return
