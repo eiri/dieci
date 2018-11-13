@@ -5,7 +5,7 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/binary"
-	_ "encoding/gob"
+	"encoding/gob"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -30,6 +30,7 @@ type index map[Score]addr
 
 // Store represents a data store.
 type Store struct {
+	name string
 	idx  index
 	eof  int
 	data *os.File
@@ -42,8 +43,9 @@ func New() (s *Store, err error) {
 	if err != nil {
 		return
 	}
-	storeName := fmt.Sprintf("%x.data", buf)
-	f, err := os.OpenFile(storeName, os.O_RDONLY|os.O_CREATE, 0600)
+	storeName := hex.EncodeToString(buf)
+	dataFileName := fmt.Sprintf("%s.data", storeName)
+	f, err := os.OpenFile(dataFileName, os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		return
 	}
@@ -53,16 +55,40 @@ func New() (s *Store, err error) {
 
 // Open opens provided storage
 func Open(storeName string) (s *Store, err error) {
-	f, err := os.OpenFile(storeName, os.O_APPEND|os.O_RDWR, 0600)
+	dataFileName := fmt.Sprintf("%s.data", storeName)
+	dfh, err := os.OpenFile(dataFileName, os.O_APPEND|os.O_RDWR, 0600)
 	if err != nil {
 		return
 	}
-	i, err := f.Stat()
+	i, err := dfh.Stat()
 	if err != nil {
 		return
 	}
-	idx := buildIndex(f)
-	s = &Store{idx: idx, eof: int(i.Size()), data: f}
+	var idx index
+	indexFileName := fmt.Sprintf("%s.idx", storeName)
+	ifh, err := os.OpenFile(indexFileName, os.O_RDONLY, 0600)
+	if err == nil {
+		decoder := gob.NewDecoder(ifh)
+		err = decoder.Decode(&idx)
+		ifh.Close()
+	}
+	if err != nil {
+		idx = buildIndex(dfh)
+		flags := os.O_CREATE | os.O_TRUNC | os.O_WRONLY
+		ifh, err = os.OpenFile(indexFileName, flags, 0600)
+		if err != nil {
+			return
+		}
+		encoder := gob.NewEncoder(ifh)
+		encoder.Encode(idx)
+		ifh.Close()
+	}
+	s = &Store{
+		name: storeName,
+		idx:  idx,
+		eof:  int(i.Size()),
+		data: dfh,
+	}
 	return
 }
 
@@ -93,7 +119,7 @@ func makeScore(b []byte) Score {
 
 // Name returns name of a store
 func (s *Store) Name() string {
-	return s.data.Name()
+	return s.name
 }
 
 // MakeScore generated a score for a given data
@@ -146,14 +172,26 @@ func (s *Store) Write(b []byte) (score Score, err error) {
 
 // Close provided storage
 func (s *Store) Close() error {
+	indexFileName := fmt.Sprintf("%s.idx", s.name)
+	flags := os.O_CREATE | os.O_TRUNC | os.O_WRONLY
+	if f, err := os.OpenFile(indexFileName, flags, 0600); err == nil {
+		encoder := gob.NewEncoder(f)
+		encoder.Encode(s.idx)
+		f.Close()
+	}
 	return s.data.Close()
 }
 
 // Delete provided storage
 func (s *Store) Delete() error {
-	err := s.data.Close()
+	err := s.Close()
 	if err == nil {
-		return os.Remove(s.data.Name())
+		indexFileName := fmt.Sprintf("%s.idx", s.name)
+		err = os.Remove(indexFileName)
+	}
+	if err == nil {
+		dataFileName := fmt.Sprintf("%s.data", s.name)
+		err = os.Remove(dataFileName)
 	}
 	return err
 }
