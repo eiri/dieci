@@ -2,6 +2,7 @@ package beansdb_test
 
 import (
 	"crypto/rand"
+	"fmt"
 	"github.com/eiri/beansdb"
 	"os"
 	"reflect"
@@ -24,7 +25,7 @@ func TestNew(t *testing.T) {
 	}
 	defer s.Close()
 	storeName = s.Name()
-	_, err = os.Stat(storeName)
+	_, err = os.Stat(fmt.Sprintf("%s.data", storeName))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,10 +33,6 @@ func TestNew(t *testing.T) {
 
 // TestOpen to ensure we can open an existing storage
 func TestOpen(t *testing.T) {
-	_, err := os.Stat(storeName)
-	if err != nil {
-		t.Fatal(err)
-	}
 	s, err := beansdb.Open(storeName)
 	if err != nil {
 		t.Fatal(err)
@@ -46,7 +43,7 @@ func TestOpen(t *testing.T) {
 // BenchmarkOpen for an iterative improvement
 func BenchmarkOpen(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		s, err := beansdb.Open("testdata/words.data")
+		s, err := beansdb.Open("testdata/words")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -62,6 +59,7 @@ func TestWrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
+	dataFileName := fmt.Sprintf("%s.data", storeName)
 	for i, docSize := range []int{2100, 1200, 4200, 500, 1700} {
 		doc := make([]byte, docSize)
 		_, err = rand.Read(doc)
@@ -74,12 +72,12 @@ func TestWrite(t *testing.T) {
 		}
 		kvs[i] = kv{score: score, data: doc}
 		// test deduplication
-		statBefore, _ := os.Stat(storeName)
+		statBefore, _ := os.Stat(dataFileName)
 		score2, err := s.Write(doc)
 		if err != nil {
 			t.Fatal(err)
 		}
-		statAfter, _ := os.Stat(storeName)
+		statAfter, _ := os.Stat(dataFileName)
 		if score != score2 {
 			t.Errorf("Expecting score be the same %s != %s", score, score2)
 		}
@@ -132,7 +130,7 @@ func TestRead(t *testing.T) {
 
 // BenchmarkRead for an iterative improvement
 func BenchmarkRead(b *testing.B) {
-	s, err := beansdb.Open("testdata/words.data")
+	s, err := beansdb.Open("testdata/words")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -174,7 +172,8 @@ func TestWriteRead(t *testing.T) {
 
 // TestDelete to ensure we can delete the store
 func TestDelete(t *testing.T) {
-	_, err := os.Stat(storeName)
+	dataFileName := fmt.Sprintf("%s.data", storeName)
+	_, err := os.Stat(dataFileName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +182,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Delete()
-	_, err = os.Stat(storeName)
+	_, err = os.Stat(dataFileName)
 	if !os.IsNotExist(err) {
 		t.Error("Expecting store file do not exist")
 	}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"github.com/eiri/beansdb"
 	"io"
 	"os"
@@ -13,7 +14,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer s.Close()
 	// input
 	f, err := os.Open("/usr/share/dict/words")
 	if err != nil {
@@ -31,5 +31,7 @@ func main() {
 			panic(err)
 		}
 	}
-	os.Rename(s.Name(), "words.data")
+	s.Close()
+	os.Rename(fmt.Sprintf("%s.data", s.Name()), "words.data")
+	os.Rename(fmt.Sprintf("%s.idx", s.Name()), "words.idx")
 }
