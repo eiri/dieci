@@ -184,7 +184,7 @@ func (s *Store) Close() error {
 
 // Delete provided storage
 func (s *Store) Delete() error {
-	err := s.Close()
+	err := s.data.Close()
 	if err == nil {
 		indexFileName := fmt.Sprintf("%s.idx", s.name)
 		err = os.Remove(indexFileName)
