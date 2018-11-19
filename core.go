@@ -5,7 +5,6 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/binary"
-	"encoding/gob"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -14,6 +13,9 @@ import (
 
 // ScoreSize is the size of score in bytes
 const ScoreSize = 16
+
+// IntSize is the binary size of integer we write on disk
+const IntSize = 4
 
 // Score is type alias for score representation
 type Score [ScoreSize]byte
@@ -64,25 +66,33 @@ func Open(storeName string) (s *Store, err error) {
 	if err != nil {
 		return
 	}
-	var idx index
+	idx := make(index)
 	indexFileName := fmt.Sprintf("%s.idx", storeName)
 	ifh, err := os.OpenFile(indexFileName, os.O_RDONLY, 0600)
 	if err == nil {
-		decoder := gob.NewDecoder(ifh)
-		err = decoder.Decode(&idx)
-		ifh.Close()
-	}
-	if err != nil {
-		idx = buildIndex(dfh)
-		flags := os.O_CREATE | os.O_TRUNC | os.O_WRONLY
-		ifh, err = os.OpenFile(indexFileName, flags, 0600)
-		if err != nil {
-			return
+		bufSize := 2*IntSize + ScoreSize
+		buf := make([]byte, bufSize, bufSize)
+		for {
+			if _, err := ifh.Read(buf); err == io.EOF {
+				break
+			}
+			var score Score
+			pos := int(binary.BigEndian.Uint32(buf[0:IntSize]))
+			len := int(binary.BigEndian.Uint32(buf[IntSize : 2*IntSize]))
+			copy(score[:], buf[2*IntSize:])
+			idx[score] = addr{pos, len}
 		}
-		encoder := gob.NewEncoder(ifh)
-		encoder.Encode(idx)
 		ifh.Close()
 	}
+	flags := os.O_CREATE | os.O_TRUNC | os.O_WRONLY
+	ifh, err = os.OpenFile(indexFileName, flags, 0600)
+	if err != nil {
+		return
+	}
+	if len(idx) == 0 {
+		idx = buildIndex(dfh, ifh)
+	}
+	ifh.Close()
 	s = &Store{
 		name: storeName,
 		idx:  idx,
@@ -92,10 +102,10 @@ func Open(storeName string) (s *Store, err error) {
 	return
 }
 
-func buildIndex(f *os.File) index {
-	var pos int
+func buildIndex(f *os.File, i *os.File) index {
+	pos := IntSize
 	idx := make(index)
-	lenBuf := make([]byte, 4)
+	lenBuf := make([]byte, IntSize)
 	for {
 		if _, err := f.Read(lenBuf); err == io.EOF {
 			break
@@ -106,8 +116,15 @@ func buildIndex(f *os.File) index {
 			break
 		}
 		score := makeScore(buf)
-		idx[score] = addr{pos + 4, len}
-		pos += len + 4
+		idx[score] = addr{pos, len}
+		// write to index
+		iBuf := make([]byte, 2*IntSize, 2*IntSize+ScoreSize)
+		binary.BigEndian.PutUint32(buf[0:IntSize], uint32(pos))
+		binary.BigEndian.PutUint32(buf[IntSize:2*IntSize], uint32(len))
+		iBuf = append(iBuf, score[:]...)
+		i.Write(buf)
+		//
+		pos += len + IntSize
 	}
 	return idx
 }
@@ -175,8 +192,17 @@ func (s *Store) Close() error {
 	indexFileName := fmt.Sprintf("%s.idx", s.name)
 	flags := os.O_CREATE | os.O_TRUNC | os.O_WRONLY
 	if f, err := os.OpenFile(indexFileName, flags, 0600); err == nil {
-		encoder := gob.NewEncoder(f)
-		encoder.Encode(s.idx)
+		bufSize := 2*IntSize + ScoreSize
+		buf := make([]byte, bufSize, bufSize)
+		for score, addr := range s.idx {
+			binary.BigEndian.PutUint32(buf[0:IntSize], uint32(addr[0]))
+			binary.BigEndian.PutUint32(buf[IntSize:2*IntSize], uint32(addr[1]))
+			copy(buf[2*IntSize:], score[:])
+			_, err := f.Write(buf)
+			if err != nil {
+				return err
+			}
+		}
 		f.Close()
 	}
 	return s.data.Close()
