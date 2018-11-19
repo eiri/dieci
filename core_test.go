@@ -40,14 +40,29 @@ func TestOpen(t *testing.T) {
 	s.Close()
 }
 
-// BenchmarkOpen for an iterative improvement
+// BenchmarkOpen for iterative improvement of open
 func BenchmarkOpen(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		b.StartTimer()
+		s, err := beansdb.Open("testdata/words")
+		if err != nil {
+			b.Fatal(err)
+		}
+		b.StopTimer()
+		s.Close()
+	}
+}
+
+// BenchmarkClose for iterative improvement of close
+func BenchmarkClose(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		s, err := beansdb.Open("testdata/words")
 		if err != nil {
 			b.Fatal(err)
 		}
+		b.StartTimer()
 		s.Close()
+		b.StopTimer()
 	}
 }
 
@@ -87,13 +102,12 @@ func TestWrite(t *testing.T) {
 	}
 }
 
-// BenchmarkWrite for an iterative improvement
+// BenchmarkWrite for iterative improvement or writes
 func BenchmarkWrite(b *testing.B) {
 	s, err := beansdb.New()
 	if err != nil {
 		b.Fatal(err)
 	}
-	defer s.Delete()
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		b.StopTimer()
@@ -107,6 +121,9 @@ func BenchmarkWrite(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+	b.StopTimer()
+	s.Delete()
+
 }
 
 // TestRead to ensure we can read from the store
@@ -128,13 +145,12 @@ func TestRead(t *testing.T) {
 	}
 }
 
-// BenchmarkRead for an iterative improvement
+// BenchmarkRead for iterative improvement of reads
 func BenchmarkRead(b *testing.B) {
 	s, err := beansdb.Open("testdata/words")
 	if err != nil {
 		b.Fatal(err)
 	}
-	defer s.Close()
 	score := s.MakeScore([]byte("witchwork"))
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
@@ -143,6 +159,8 @@ func BenchmarkRead(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+	b.StopTimer()
+	s.Close()
 }
 
 // TestWriteRead to ensure we can read back written
