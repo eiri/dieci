@@ -191,9 +191,9 @@ func (s *Store) Write(b []byte) (score Score, err error) {
 		return
 	}
 	len := len(b)
-	buf := make([]byte, IntSize, len+IntSize)
+	buf := make([]byte, len+IntSize, len+IntSize)
 	binary.BigEndian.PutUint32(buf[:IntSize], uint32(len))
-	buf = append(buf, b...)
+	copy(buf[IntSize:], b)
 	n, err := s.data.Write(buf)
 	if err != nil {
 		return
