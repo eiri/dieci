@@ -32,10 +32,11 @@ type index map[Score]addr
 
 // Store represents a data store.
 type Store struct {
-	name string
-	idx  index
-	eof  int
-	data *os.File
+	name  string
+	idx   index
+	eof   int
+	data  *os.File
+	index *os.File
 }
 
 // New creates a new empty storage
@@ -66,38 +67,50 @@ func Open(storeName string) (s *Store, err error) {
 	if err != nil {
 		return
 	}
-	idx := make(index)
-	indexFileName := fmt.Sprintf("%s.idx", storeName)
-	ifh, err := os.OpenFile(indexFileName, os.O_RDONLY, 0600)
-	if err == nil {
-		bufSize := 2*IntSize + ScoreSize
-		buf := make([]byte, bufSize, bufSize)
-		for {
-			if _, err := ifh.Read(buf); err == io.EOF {
-				break
-			}
-			var score Score
-			pos := int(binary.BigEndian.Uint32(buf[0:IntSize]))
-			len := int(binary.BigEndian.Uint32(buf[IntSize : 2*IntSize]))
-			copy(score[:], buf[2*IntSize:])
-			idx[score] = addr{pos, len}
-		}
-		ifh.Close()
+	idx, err := loadIndex(storeName)
+	if err != nil && !os.IsNotExist(err) {
+		return
 	}
-	flags := os.O_CREATE | os.O_TRUNC | os.O_WRONLY
-	ifh, err = os.OpenFile(indexFileName, flags, 0600)
+	indexFileName := fmt.Sprintf("%s.idx", storeName)
+	ifh, err := os.OpenFile(indexFileName, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return
 	}
 	if len(idx) == 0 {
 		idx = buildIndex(dfh, ifh)
 	}
-	ifh.Close()
 	s = &Store{
-		name: storeName,
-		idx:  idx,
-		eof:  int(i.Size()),
-		data: dfh,
+		name:  storeName,
+		idx:   idx,
+		eof:   int(i.Size()),
+		data:  dfh,
+		index: ifh,
+	}
+	return
+}
+
+func loadIndex(storeName string) (idx index, err error) {
+	indexFileName := fmt.Sprintf("%s.idx", storeName)
+	f, err := os.OpenFile(indexFileName, os.O_RDONLY, 0600)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	idx = make(index)
+	bufSize := 2*IntSize + ScoreSize
+	buf := make([]byte, bufSize, bufSize)
+	for {
+		if _, err = f.Read(buf); err == io.EOF {
+			break
+		}
+		var score Score
+		pos := int(binary.BigEndian.Uint32(buf[0:IntSize]))
+		len := int(binary.BigEndian.Uint32(buf[IntSize : 2*IntSize]))
+		copy(score[:], buf[2*IntSize:])
+		idx[score] = addr{pos, len}
+	}
+	if err == io.EOF {
+		return idx, nil
 	}
 	return
 }
@@ -117,13 +130,10 @@ func buildIndex(f *os.File, i *os.File) index {
 		}
 		score := makeScore(buf)
 		idx[score] = addr{pos, len}
-		// write to index
-		iBuf := make([]byte, 2*IntSize, 2*IntSize+ScoreSize)
-		binary.BigEndian.PutUint32(buf[0:IntSize], uint32(pos))
-		binary.BigEndian.PutUint32(buf[IntSize:2*IntSize], uint32(len))
-		iBuf = append(iBuf, score[:]...)
-		i.Write(buf)
-		//
+		err := writeScore(i, score, pos, len)
+		if err != nil {
+			break
+		}
 		pos += len + IntSize
 	}
 	return idx
@@ -132,6 +142,16 @@ func buildIndex(f *os.File, i *os.File) index {
 func makeScore(b []byte) Score {
 	score := md5.Sum(b)
 	return score
+}
+
+func writeScore(f *os.File, score Score, pos, len int) error {
+	bufSize := 2*IntSize + ScoreSize
+	buf := make([]byte, bufSize, bufSize)
+	binary.BigEndian.PutUint32(buf[0:IntSize], uint32(pos))
+	binary.BigEndian.PutUint32(buf[IntSize:2*IntSize], uint32(len))
+	copy(buf[2*IntSize:], score[:])
+	_, err := f.Write(buf)
+	return err
 }
 
 // Name returns name of a store
@@ -171,8 +191,8 @@ func (s *Store) Write(b []byte) (score Score, err error) {
 		return
 	}
 	len := len(b)
-	buf := make([]byte, 4, len+4)
-	binary.BigEndian.PutUint32(buf[:4], uint32(len))
+	buf := make([]byte, IntSize, len+IntSize)
+	binary.BigEndian.PutUint32(buf[:IntSize], uint32(len))
 	buf = append(buf, b...)
 	n, err := s.data.Write(buf)
 	if err != nil {
@@ -182,42 +202,32 @@ func (s *Store) Write(b []byte) (score Score, err error) {
 	if err != nil {
 		return
 	}
-	s.idx[score] = addr{s.eof + 4, n - 4}
+	newPos := s.eof + IntSize
+	newLen := n - IntSize
+	s.idx[score] = addr{newPos, newLen}
+	writeScore(s.index, score, newPos, newLen)
 	s.eof += n
 	return
 }
 
 // Close provided storage
 func (s *Store) Close() error {
-	indexFileName := fmt.Sprintf("%s.idx", s.name)
-	flags := os.O_CREATE | os.O_TRUNC | os.O_WRONLY
-	if f, err := os.OpenFile(indexFileName, flags, 0600); err == nil {
-		bufSize := 2*IntSize + ScoreSize
-		buf := make([]byte, bufSize, bufSize)
-		for score, addr := range s.idx {
-			binary.BigEndian.PutUint32(buf[0:IntSize], uint32(addr[0]))
-			binary.BigEndian.PutUint32(buf[IntSize:2*IntSize], uint32(addr[1]))
-			copy(buf[2*IntSize:], score[:])
-			_, err := f.Write(buf)
-			if err != nil {
-				return err
-			}
-		}
-		f.Close()
+	err := s.index.Close()
+	if err != nil {
+		return err
 	}
 	return s.data.Close()
 }
 
 // Delete provided storage
 func (s *Store) Delete() error {
-	err := s.data.Close()
-	if err == nil {
-		indexFileName := fmt.Sprintf("%s.idx", s.name)
-		err = os.Remove(indexFileName)
+	if err := s.Close(); err != nil {
+		return err
 	}
-	if err == nil {
-		dataFileName := fmt.Sprintf("%s.data", s.name)
-		err = os.Remove(dataFileName)
+	indexFileName := fmt.Sprintf("%s.idx", s.name)
+	if err := os.Remove(indexFileName); err != nil {
+		return err
 	}
-	return err
+	dataFileName := fmt.Sprintf("%s.data", s.name)
+	return os.Remove(dataFileName)
 }

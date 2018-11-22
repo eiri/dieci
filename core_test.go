@@ -43,26 +43,11 @@ func TestOpen(t *testing.T) {
 // BenchmarkOpen for iterative improvement of open
 func BenchmarkOpen(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		b.StartTimer()
 		s, err := beansdb.Open("testdata/words")
 		if err != nil {
 			b.Fatal(err)
 		}
-		b.StopTimer()
 		s.Close()
-	}
-}
-
-// BenchmarkClose for iterative improvement of close
-func BenchmarkClose(b *testing.B) {
-	for n := 0; n < b.N; n++ {
-		s, err := beansdb.Open("testdata/words")
-		if err != nil {
-			b.Fatal(err)
-		}
-		b.StartTimer()
-		s.Close()
-		b.StopTimer()
 	}
 }
 
