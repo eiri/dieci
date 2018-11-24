@@ -11,8 +11,11 @@ all: deps test ## get deps and run tests
 deps: ## install deps
 	go get -t ./...
 
+testdata/fox-dog.idx.golden:
+	cd testdata; go run make_fixtures.go
+
 .PHONY: test
-test: clean-data ## run tests
+test: testdata/fox-dog.idx.golden clean-data ## run tests
 	go test -v ./...
 
 testdata/words.data:
@@ -35,10 +38,13 @@ clean: clean-data ## clean up
 	go clean
 	rm -f coverage.out
 	rm -f *.bench
-	rm -f testdata/words.data
+	rm -f testdata/*.data
+	rm -f testdata/*.idx
+	rm -f testdata/*.golden
 
 .PHONY: clean-data
-clean-data: ## remove storage files from the test runs
+clean-data: ## remove index and datalog files from the test runs
+	rm -f *.idx
 	rm -f *.data
 
 .PHONY: format
