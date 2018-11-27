@@ -10,7 +10,7 @@ import (
 
 type indexer interface {
 	get(score Score) (int, int, bool)
-	put(score Score, pos, len int) error
+	put(score Score, p, l int) error
 	close() error
 	delete() error
 }
@@ -60,10 +60,10 @@ func loadIndex(fileName string) (c cache, err error) {
 			break
 		}
 		var score Score
-		pos := binary.BigEndian.Uint32(buf[0:IntSize])
-		len := binary.BigEndian.Uint32(buf[IntSize : 2*IntSize])
+		p := binary.BigEndian.Uint32(buf[0:IntSize])
+		l := binary.BigEndian.Uint32(buf[IntSize : 2*IntSize])
 		copy(score[:], buf[2*IntSize:bufSize])
-		c[score] = addr{int(pos), int(len)}
+		c[score] = addr{int(p), int(l)}
 	}
 	if err == io.EOF {
 		return c, nil
@@ -79,54 +79,54 @@ func rebuildIndex(name string, i *index) error {
 		return err
 	}
 	defer f.Close()
-	pos := IntSize
-	lenBuf := make([]byte, IntSize)
+	p := IntSize
+	lBuf := make([]byte, IntSize)
 	for {
-		if _, err = f.Read(lenBuf); err == io.EOF {
+		if _, err = f.Read(lBuf); err == io.EOF {
 			err = nil
 			break
 		}
-		len := int(binary.BigEndian.Uint32(lenBuf))
-		buf := make([]byte, len)
+		l := int(binary.BigEndian.Uint32(lBuf))
+		buf := make([]byte, l)
 		if _, err = f.Read(buf); err == io.EOF {
 			err = nil
 			break
 		}
 		score := makeScore(buf)
-		err = i.put(score, pos, len)
+		err = i.put(score, p, l)
 		if err != nil {
 			break
 		}
-		pos += len + IntSize
+		p += l + IntSize
 	}
 	return err
 }
 
 // get returns an address for a given score if it's known
-func (i *index) get(score Score) (pos, len int, ok bool) {
+func (i *index) get(score Score) (p, l int, ok bool) {
 	addr, ok := i.cache[score]
 	if !ok {
 		return
 	}
-	pos, len = addr[0], addr[1]
+	p, l = addr[0], addr[1]
 	return
 }
 
 // put stores a given score and address
-func (i *index) put(score Score, pos, len int) error {
+func (i *index) put(score Score, p, l int) error {
 	if _, ok := i.cache[score]; ok {
 		return nil
 	}
 	bufSize := 2*IntSize + ScoreSize
 	buf := make([]byte, bufSize, bufSize)
-	binary.BigEndian.PutUint32(buf[0:IntSize], uint32(pos))
-	binary.BigEndian.PutUint32(buf[IntSize:2*IntSize], uint32(len))
+	binary.BigEndian.PutUint32(buf[0:IntSize], uint32(p))
+	binary.BigEndian.PutUint32(buf[IntSize:2*IntSize], uint32(l))
 	copy(buf[2*IntSize:bufSize], score[:])
 	_, err := i.Write(buf)
 	if err != nil {
 		return err
 	}
-	i.cache[score] = addr{pos, len}
+	i.cache[score] = addr{p, l}
 	return err
 }
 
