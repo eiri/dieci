@@ -108,7 +108,7 @@ func TestIndexGet(t *testing.T) {
 	words1 := "The quick brown fox jumps over the lazy dog"
 	for _, w := range strings.Fields(words1) {
 		b := []byte(w)
-		score := makeScore(b)
+		score := MakeScore(b)
 		p, l, ok := i.get(score)
 		if !ok {
 			t.Fatalf("Expecting %s => %s to be in the index", w, score)
@@ -124,7 +124,7 @@ func TestIndexGet(t *testing.T) {
 	words2 := "When zombies arrive quickly fax judge Pat"
 	for _, w := range strings.Fields(words2) {
 		b := []byte(w)
-		score := makeScore(b)
+		score := MakeScore(b)
 		p, l, ok := i.get(score)
 		if ok {
 			t.Fatalf("Expecting %s not to be in the index", w)
@@ -150,7 +150,7 @@ func TestIndexPut(t *testing.T) {
 	words := "The quick brown fox jumps over the lazy dog"
 	for pos, w := range strings.Fields(words) {
 		b := []byte(w)
-		score := makeScore(b)
+		score := MakeScore(b)
 		err := i.put(score, pos, len(b))
 		if err != nil {
 			t.Fatal(err)
@@ -163,7 +163,7 @@ func TestIndexPut(t *testing.T) {
 	// read back
 	for pos, w := range strings.Fields(words) {
 		b := []byte(w)
-		score := makeScore(b)
+		score := MakeScore(b)
 		bpos, blen, ok := i.get(score)
 		if !ok {
 			t.Fatalf("Expecting %s => %s to be in the index", w, score)

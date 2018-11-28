@@ -2,25 +2,11 @@
 package beansdb
 
 import (
-	"crypto/md5"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"os"
 )
-
-// ScoreSize is the size of score in bytes
-const ScoreSize = 16
-
-// IntSize is the binary size of integer we write on disk
-const IntSize = 4
-
-// Score is type alias for score representation
-type Score [ScoreSize]byte
-
-func (s Score) String() string {
-	return hex.EncodeToString(s[:])
-}
 
 // Store represents a data store.
 type Store struct {
@@ -64,19 +50,9 @@ func Open(name string) (s *Store, err error) {
 	return
 }
 
-func makeScore(b []byte) Score {
-	score := md5.Sum(b)
-	return score
-}
-
 // Name returns name of a store
 func (s *Store) Name() string {
 	return s.name
-}
-
-// MakeScore generated a score for a given data
-func (s *Store) MakeScore(b []byte) Score {
-	return makeScore(b)
 }
 
 // Read a data for a given score
@@ -87,7 +63,7 @@ func (s *Store) Read(score Score) (b []byte, err error) {
 		return
 	}
 	b, err = s.data.get(p, l)
-	if score != s.MakeScore(b) {
+	if score != MakeScore(b) {
 		b = nil
 		err = fmt.Errorf("Checksum failure")
 	}
@@ -96,7 +72,7 @@ func (s *Store) Read(score Score) (b []byte, err error) {
 
 // Write given data and return it's score
 func (s *Store) Write(b []byte) (score Score, err error) {
-	score = s.MakeScore(b)
+	score = MakeScore(b)
 	if _, _, ok := s.index.get(score); ok {
 		return
 	}

@@ -8,6 +8,8 @@ import (
 	"os"
 )
 
+const iIntSize = 4
+
 type indexer interface {
 	get(score Score) (int, int, bool)
 	put(score Score, p, l int) error
@@ -53,16 +55,16 @@ func loadIndex(fileName string) (c cache, err error) {
 		return
 	}
 	defer f.Close()
-	bufSize := 2*IntSize + ScoreSize
+	bufSize := 2*iIntSize + ScoreSize
 	buf := make([]byte, bufSize, bufSize)
 	for {
 		if _, err = f.Read(buf); err == io.EOF {
 			break
 		}
 		var score Score
-		p := binary.BigEndian.Uint32(buf[0:IntSize])
-		l := binary.BigEndian.Uint32(buf[IntSize : 2*IntSize])
-		copy(score[:], buf[2*IntSize:bufSize])
+		p := binary.BigEndian.Uint32(buf[0:iIntSize])
+		l := binary.BigEndian.Uint32(buf[iIntSize : 2*iIntSize])
+		copy(score[:], buf[2*iIntSize:bufSize])
 		c[score] = addr{int(p), int(l)}
 	}
 	if err == io.EOF {
@@ -79,8 +81,8 @@ func rebuildIndex(name string, i *index) error {
 		return err
 	}
 	defer f.Close()
-	p := IntSize
-	lBuf := make([]byte, IntSize)
+	p := iIntSize
+	lBuf := make([]byte, iIntSize)
 	for {
 		if _, err = f.Read(lBuf); err == io.EOF {
 			err = nil
@@ -92,12 +94,12 @@ func rebuildIndex(name string, i *index) error {
 			err = nil
 			break
 		}
-		score := makeScore(buf)
+		score := MakeScore(buf)
 		err = i.put(score, p, l)
 		if err != nil {
 			break
 		}
-		p += l + IntSize
+		p += l + iIntSize
 	}
 	return err
 }
@@ -117,11 +119,11 @@ func (i *index) put(score Score, p, l int) error {
 	if _, ok := i.cache[score]; ok {
 		return nil
 	}
-	bufSize := 2*IntSize + ScoreSize
+	bufSize := 2*iIntSize + ScoreSize
 	buf := make([]byte, bufSize, bufSize)
-	binary.BigEndian.PutUint32(buf[0:IntSize], uint32(p))
-	binary.BigEndian.PutUint32(buf[IntSize:2*IntSize], uint32(l))
-	copy(buf[2*IntSize:bufSize], score[:])
+	binary.BigEndian.PutUint32(buf[0:iIntSize], uint32(p))
+	binary.BigEndian.PutUint32(buf[iIntSize:2*iIntSize], uint32(l))
+	copy(buf[2*iIntSize:bufSize], score[:])
 	_, err := i.Write(buf)
 	if err != nil {
 		return err

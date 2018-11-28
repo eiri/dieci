@@ -7,6 +7,8 @@ import (
 	"os"
 )
 
+const dIntSize = 4
+
 type datalogger interface {
 	get(p, l int) ([]byte, error)
 	put([]byte) (int, int, error)
@@ -51,10 +53,10 @@ func (d *datalog) get(p, l int) ([]byte, error) {
 // put stores the given data block and returns its length and position
 func (d *datalog) put(b []byte) (p, l int, err error) {
 	l = len(b)
-	bufSize := IntSize + l
+	bufSize := dIntSize + l
 	buf := make([]byte, bufSize, bufSize)
-	binary.BigEndian.PutUint32(buf[0:IntSize], uint32(l))
-	copy(buf[IntSize:bufSize], b)
+	binary.BigEndian.PutUint32(buf[0:dIntSize], uint32(l))
+	copy(buf[dIntSize:bufSize], b)
 	n, err := d.Write(buf)
 	if err != nil {
 		return
@@ -63,8 +65,8 @@ func (d *datalog) put(b []byte) (p, l int, err error) {
 	if err != nil {
 		return
 	}
-	p = d.cur + IntSize
-	l = n - IntSize
+	p = d.cur + dIntSize
+	l = n - dIntSize
 	d.cur += n
 	return
 }
