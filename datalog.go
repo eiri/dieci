@@ -36,13 +36,13 @@ func openDataLog(name string) (d *datalog, err error) {
 }
 
 // get returns a data block of the given length read from the given position
-func (d *datalog) get(pos, len int) ([]byte, error) {
-	b := make([]byte, len)
-	n, err := d.ReadAt(b, int64(pos))
+func (d *datalog) get(p, l int) ([]byte, error) {
+	b := make([]byte, l)
+	n, err := d.ReadAt(b, int64(p))
 	if err != nil {
 		return b, err
 	}
-	if n != len {
+	if n != l {
 		err = fmt.Errorf("Read failed")
 	}
 	return b, err
