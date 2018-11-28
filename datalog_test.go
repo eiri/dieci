@@ -44,15 +44,15 @@ func TestDataLogGet(t *testing.T) {
 	}
 	defer d.close()
 	blocks := []addr{
-		addr{4, 3},
-		addr{11, 5},
-		addr{20, 5},
-		addr{29, 3},
-		addr{36, 5},
-		addr{45, 4},
-		addr{53, 3},
-		addr{60, 4},
-		addr{68, 3},
+		{4, 3},
+		{11, 5},
+		{20, 5},
+		{29, 3},
+		{36, 5},
+		{45, 4},
+		{53, 3},
+		{60, 4},
+		{68, 3},
 	}
 	words := "The quick brown fox jumps over the lazy dog"
 	for i, w := range strings.Fields(words) {

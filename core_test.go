@@ -99,10 +99,12 @@ func BenchmarkWrite(b *testing.B) {
 		docSize := 1024
 		doc := make([]byte, docSize)
 		_, err = rand.Read(doc)
+		if err != nil {
+			b.Fatal(err)
+		}
 		b.StartTimer()
-		if err == nil {
-			_, err = s.Write(doc)
-		} else {
+		_, err = s.Write(doc)
+		if err != nil {
 			b.Fatal(err)
 		}
 	}
