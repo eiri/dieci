@@ -136,7 +136,7 @@ func BenchmarkRead(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	score := s.MakeScore([]byte("witchwork"))
+	score := beansdb.MakeScore([]byte("witchwork"))
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		_, err := s.Read(score)

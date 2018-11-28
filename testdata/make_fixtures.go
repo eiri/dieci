@@ -2,19 +2,42 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"github.com/eiri/beansdb"
 	"io"
 	"os"
+	"strings"
 )
 
-func main() {
-	// storage
-	s, err := beansdb.New()
+func touch(name string) {
+	f, _ := os.OpenFile(name+".data", os.O_CREATE|os.O_EXCL, 0600)
+	defer f.Close()
+}
+
+func foxdog() {
+	touch("fox-dog")
+	s, err := beansdb.Open("fox-dog")
 	if err != nil {
 		panic(err)
 	}
-	// input
+	defer s.Close()
+	words := "The quick brown fox jumps over the lazy dog"
+	for _, word := range strings.Fields(words) {
+		_, err = s.Write([]byte(word))
+		if err != nil {
+			panic(err)
+		}
+	}
+	os.Rename("fox-dog.data", "fox-dog.data.golden")
+	os.Rename("fox-dog.idx", "fox-dog.idx.golden")
+}
+
+func words() {
+	touch("words")
+	s, err := beansdb.Open("words")
+	if err != nil {
+		panic(err)
+	}
+	defer s.Close()
 	f, err := os.Open("/usr/share/dict/words")
 	if err != nil {
 		panic(err)
@@ -31,7 +54,13 @@ func main() {
 			panic(err)
 		}
 	}
-	s.Close()
-	os.Rename(fmt.Sprintf("%s.data", s.Name()), "words.data")
-	os.Rename(fmt.Sprintf("%s.idx", s.Name()), "words.idx")
+}
+
+func main() {
+	if _, err := os.Stat("fox-dog.idx.golden"); os.IsNotExist(err) {
+		foxdog()
+	}
+	if _, err := os.Stat("words.data"); os.IsNotExist(err) {
+		words()
+	}
 }
