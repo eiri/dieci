@@ -27,6 +27,7 @@ func foxdog() {
 			panic(err)
 		}
 	}
+	os.Rename("fox-dog.data", "fox-dog.data.golden")
 	os.Rename("fox-dog.idx", "fox-dog.idx.golden")
 }
 

@@ -11,7 +11,13 @@ import (
 
 // TestIndexLoad to ensure we can load an existing index
 func TestIndexLoad(t *testing.T) {
-	name := filepath.Join("testdata", "fox-dog.idx.golden")
+	// setup
+	name := filepath.Join("testdata", "fox-dog.idx")
+	err := copyGoldenFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// test
 	c, err := loadIndex(name)
 	if err != nil {
 		t.Fatal(err)
@@ -19,12 +25,20 @@ func TestIndexLoad(t *testing.T) {
 	if len(c) != 9 {
 		t.Fatalf("Expecting 9 keys in index, got %d", len(c))
 	}
+	// teardown
+	os.Remove(name)
 }
 
 // TestIndexRebuild to ensure we can rebuild an index from a datalog
 func TestIndexRebuild(t *testing.T) {
+	// setup
 	name := filepath.Join("testdata", "fox-dog")
 	os.Remove(name + ".idx")
+	err := copyGoldenFile(name + ".data")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// test
 	f, err := os.OpenFile(name+".idx", os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		t.Fatal(err)
@@ -50,11 +64,20 @@ func TestIndexRebuild(t *testing.T) {
 	if !bytes.Equal(rebuilt, expected) {
 		t.Fatal("Expected rebuild index to be identical to golden")
 	}
+	// teardown
+	os.Remove(name + ".idx")
+	os.Remove(name + ".data")
 }
 
 // TestIndexOpenClose to ensure we can open an index
 func TestIndexOpenClose(t *testing.T) {
+	// setup
 	name := filepath.Join("testdata", "fox-dog")
+	err := copyGoldenFile(name + ".data")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// test
 	i, err := openIndex(name)
 	if err != nil {
 		t.Fatal(err)
@@ -69,6 +92,8 @@ func TestIndexOpenClose(t *testing.T) {
 	if len(i.cache) != 0 {
 		t.Fatal("Expecting index cache to reset")
 	}
+	// teardown
+	os.Remove(name + ".data")
 }
 
 // TestIndexGet to ensure we can read from an index
@@ -84,30 +109,30 @@ func TestIndexGet(t *testing.T) {
 	for _, w := range strings.Fields(words1) {
 		b := []byte(w)
 		score := makeScore(b)
-		pos, blen, ok := i.get(score)
+		p, l, ok := i.get(score)
 		if !ok {
 			t.Fatalf("Expecting %s => %s to be in the index", w, score)
 		}
-		if len(b) != blen {
-			t.Fatalf("Expecting lenth of %s be %d, got %d", w, len(b), blen)
+		if len(b) != l {
+			t.Fatalf("Expecting lenth of %s be %d, got %d", w, len(b), l)
 		}
-		if pos <= cur {
+		if p <= cur {
 			t.Fatalf("Expecting position of %s in datalog to be further", w)
 		}
-		cur = pos
+		cur = p
 	}
 	words2 := "When zombies arrive quickly fax judge Pat"
 	for _, w := range strings.Fields(words2) {
 		b := []byte(w)
 		score := makeScore(b)
-		pos, blen, ok := i.get(score)
+		p, l, ok := i.get(score)
 		if ok {
 			t.Fatalf("Expecting %s not to be in the index", w)
 		}
-		if pos != 0 {
+		if p != 0 {
 			t.Fatalf("Expecting %s position to be 0", w)
 		}
-		if blen != 0 {
+		if l != 0 {
 			t.Fatalf("Expecting %s length to be 0", w)
 		}
 	}
@@ -154,7 +179,6 @@ func TestIndexPut(t *testing.T) {
 
 // TestIndexDelete to ensure we can delete an index
 func TestIndexDelete(t *testing.T) {
-	// missing index
 	name := filepath.Join("testdata", "fox-dog")
 	i, err := openIndex(name)
 	if err != nil {
