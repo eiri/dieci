@@ -2,13 +2,19 @@
 package beansdb
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
 )
 
-const iIntSize = 4
+const (
+	intSize       = 4
+	doubleIntSize = 8
+	bufSize       = 24
+	pageSize      = 4080 // ~4K to match memory page
+)
 
 type indexer interface {
 	get(score Score) (int, int, bool)
@@ -48,29 +54,44 @@ func openIndex(name string) (i *index, err error) {
 }
 
 // load reads index file if presented into memory
-func loadIndex(fileName string) (c cache, err error) {
-	c = make(cache)
+func loadIndex(fileName string) (cache, error) {
+	idx := make(cache)
 	f, err := os.Open(fileName)
-	if err != nil {
-		return
-	}
 	defer f.Close()
-	bufSize := 2*iIntSize + ScoreSize
-	buf := make([]byte, bufSize, bufSize)
+	if err != nil {
+		return idx, err
+	}
 	for {
-		if _, err = f.Read(buf); err == io.EOF {
+		var readError error
+		page := make([]byte, pageSize, pageSize)
+		n, readError := f.Read(page)
+		if readError != nil {
+			err = readError
 			break
 		}
-		var score Score
-		p := binary.BigEndian.Uint32(buf[0:iIntSize])
-		l := binary.BigEndian.Uint32(buf[iIntSize : 2*iIntSize])
-		copy(score[:], buf[2*iIntSize:bufSize])
-		c[score] = addr{int(p), int(l)}
+		var parseErr error
+		r := bytes.NewReader(page[:n])
+		for {
+			var score Score
+			buf := make([]byte, bufSize, bufSize)
+			_, parseErr := r.Read(buf)
+			if parseErr != nil {
+				break
+			}
+			p := binary.BigEndian.Uint32(buf[0:intSize])
+			l := binary.BigEndian.Uint32(buf[intSize:doubleIntSize])
+			copy(score[:], buf[doubleIntSize:bufSize])
+			idx[score] = addr{int(p), int(l)}
+		}
+		if parseErr != nil && parseErr != io.EOF {
+			err = parseErr
+			break
+		}
 	}
 	if err == io.EOF {
-		return c, nil
+		return idx, nil
 	}
-	return
+	return idx, err
 }
 
 // rebuild reads data log and recreates index for it
@@ -81,8 +102,8 @@ func rebuildIndex(name string, i *index) error {
 		return err
 	}
 	defer f.Close()
-	p := iIntSize
-	lBuf := make([]byte, iIntSize)
+	p := intSize
+	lBuf := make([]byte, intSize)
 	for {
 		if _, err = f.Read(lBuf); err == io.EOF {
 			err = nil
@@ -99,7 +120,7 @@ func rebuildIndex(name string, i *index) error {
 		if err != nil {
 			break
 		}
-		p += l + iIntSize
+		p += l + intSize
 	}
 	return err
 }
@@ -119,11 +140,10 @@ func (i *index) put(score Score, p, l int) error {
 	if _, ok := i.cache[score]; ok {
 		return nil
 	}
-	bufSize := 2*iIntSize + ScoreSize
 	buf := make([]byte, bufSize, bufSize)
-	binary.BigEndian.PutUint32(buf[0:iIntSize], uint32(p))
-	binary.BigEndian.PutUint32(buf[iIntSize:2*iIntSize], uint32(l))
-	copy(buf[2*iIntSize:bufSize], score[:])
+	binary.BigEndian.PutUint32(buf[0:intSize], uint32(p))
+	binary.BigEndian.PutUint32(buf[intSize:doubleIntSize], uint32(l))
+	copy(buf[doubleIntSize:bufSize], score[:])
 	_, err := i.Write(buf)
 	if err != nil {
 		return err
