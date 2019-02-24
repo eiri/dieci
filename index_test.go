@@ -29,6 +29,16 @@ func TestIndexLoad(t *testing.T) {
 	os.Remove(name)
 }
 
+// BenchmarkIndexLoad for iterative improvement of open
+func BenchmarkIndexLoad(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		_, err := loadIndex("testdata/words.idx")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 // TestIndexRebuild to ensure we can rebuild an index from a datalog
 func TestIndexRebuild(t *testing.T) {
 	// setup
