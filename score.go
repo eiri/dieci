@@ -6,11 +6,11 @@ import (
 	"encoding/hex"
 )
 
-// ScoreSize is the size of score in bytes
-const ScoreSize = 16
+// scoreSize is the size of score in bytes
+const scoreSize = 16
 
 // Score is type alias for score representation
-type Score [ScoreSize]byte
+type Score [scoreSize]byte
 
 func (s Score) String() string {
 	return hex.EncodeToString(s[:])
