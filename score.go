@@ -1,5 +1,4 @@
-// Package beansdb implements basic API for BeansDB data store
-package beansdb
+package dieci
 
 import (
 	"crypto/md5"

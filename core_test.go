@@ -1,16 +1,17 @@
-package beansdb_test
+package dieci_test
 
 import (
 	"crypto/rand"
 	"fmt"
-	"github.com/eiri/beansdb"
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/eiri/dieci"
 )
 
 type kv struct {
-	score beansdb.Score
+	score dieci.Score
 	data  []byte
 }
 
@@ -19,7 +20,7 @@ var storeName string
 
 // TestNew to ensure we can create a new storage
 func TestNew(t *testing.T) {
-	s, err := beansdb.New()
+	s, err := dieci.New()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +34,7 @@ func TestNew(t *testing.T) {
 
 // TestOpen to ensure we can open an existing storage
 func TestOpen(t *testing.T) {
-	s, err := beansdb.Open(storeName)
+	s, err := dieci.Open(storeName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +44,7 @@ func TestOpen(t *testing.T) {
 // BenchmarkOpen for iterative improvement of open
 func BenchmarkOpen(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		s, err := beansdb.Open("testdata/words")
+		s, err := dieci.Open("testdata/words")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -54,7 +55,7 @@ func BenchmarkOpen(b *testing.B) {
 // TestWrite to ensure we can write in the store
 func TestWrite(t *testing.T) {
 	kvs = make([]kv, 5)
-	s, err := beansdb.Open(storeName)
+	s, err := dieci.Open(storeName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +90,7 @@ func TestWrite(t *testing.T) {
 
 // BenchmarkWrite for iterative improvement or writes
 func BenchmarkWrite(b *testing.B) {
-	s, err := beansdb.New()
+	s, err := dieci.New()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -115,7 +116,7 @@ func BenchmarkWrite(b *testing.B) {
 
 // TestRead to ensure we can read from the store
 func TestRead(t *testing.T) {
-	s, err := beansdb.Open(storeName)
+	s, err := dieci.Open(storeName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,11 +135,11 @@ func TestRead(t *testing.T) {
 
 // BenchmarkRead for iterative improvement of reads
 func BenchmarkRead(b *testing.B) {
-	s, err := beansdb.Open("testdata/words")
+	s, err := dieci.Open("testdata/words")
 	if err != nil {
 		b.Fatal(err)
 	}
-	score := beansdb.MakeScore([]byte("witchwork"))
+	score := dieci.MakeScore([]byte("witchwork"))
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		_, err := s.Read(score)
@@ -154,7 +155,7 @@ func BenchmarkRead(b *testing.B) {
 func TestWriteRead(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		// write doc
-		s, err := beansdb.Open(storeName)
+		s, err := dieci.Open(storeName)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -182,7 +183,7 @@ func TestDelete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := beansdb.Open(storeName)
+	s, err := dieci.Open(storeName)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -2,10 +2,11 @@ package main
 
 import (
 	"bufio"
-	"github.com/eiri/beansdb"
 	"io"
 	"os"
 	"strings"
+
+	"github.com/eiri/dieci"
 )
 
 func touch(name string) {
@@ -15,7 +16,7 @@ func touch(name string) {
 
 func foxdog() {
 	touch("fox-dog")
-	s, err := beansdb.Open("fox-dog")
+	s, err := dieci.Open("fox-dog")
 	if err != nil {
 		panic(err)
 	}
@@ -33,7 +34,7 @@ func foxdog() {
 
 func words() {
 	touch("words")
-	s, err := beansdb.Open("words")
+	s, err := dieci.Open("words")
 	if err != nil {
 		panic(err)
 	}

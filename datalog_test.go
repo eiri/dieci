@@ -1,4 +1,4 @@
-package beansdb
+package dieci
 
 import (
 	"bytes"

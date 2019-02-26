@@ -1,5 +1,5 @@
-// Package beansdb implements basic API for BeansDB data store
-package beansdb
+// Package dieci implements basic API for Dieci data store
+package dieci
 
 import (
 	"crypto/rand"
