@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/plar/go-adaptive-radix-tree"
 )
 
 // TestIndexLoad to ensure we can load an existing index
@@ -22,8 +24,8 @@ func TestIndexLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(c) != 9 {
-		t.Fatalf("Expecting 9 keys in index, got %d", len(c))
+	if c.Size() != 9 {
+		t.Fatalf("Expecting 9 keys in index, got %d", c.Size())
 	}
 	// teardown
 	os.Remove(name)
@@ -53,15 +55,15 @@ func TestIndexRebuild(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := make(cache)
+	c := art.New()
 	i := &index{c, f}
 	defer i.close()
 	err = rebuildIndex(name, i)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(c) != 9 {
-		t.Fatalf("Expecting 9 keys in index, got %d", len(c))
+	if c.Size() != 9 {
+		t.Fatalf("Expecting 9 keys in index, got %d", c.Size())
 	}
 	rebuilt, err := ioutil.ReadFile(name + ".idx")
 	if err != nil {
@@ -92,14 +94,14 @@ func TestIndexOpenClose(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(i.cache) != 9 {
-		t.Fatalf("Expecting 9 keys in index, got %d", len(i.cache))
+	if i.Size() != 9 {
+		t.Fatalf("Expecting 9 keys in index, got %d", i.Size())
 	}
 	err = i.close()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(i.cache) != 0 {
+	if i.Size() != 0 {
 		t.Fatal("Expecting index cache to reset")
 	}
 	// teardown

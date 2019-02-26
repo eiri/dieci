@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/plar/go-adaptive-radix-tree"
 )
 
 const (
@@ -25,19 +27,16 @@ type indexer interface {
 // addr is index's address type alias
 type addr [2]int
 
-// cache is in memory lookup store
-type cache map[Score]addr
-
 // index helps to locate a block in the data log given its score.
 type index struct {
-	cache cache
+	art.Tree
 	*os.File
 }
 
 // openIndex opens the named index and loads its content in the memory cache
 func openIndex(name string) (i *index, err error) {
 	fileName := fmt.Sprintf("%s.idx", name)
-	c, err := loadIndex(fileName)
+	idx, err := loadIndex(fileName)
 	if err != nil && !os.IsNotExist(err) {
 		return
 	}
@@ -45,16 +44,16 @@ func openIndex(name string) (i *index, err error) {
 	if err != nil {
 		return
 	}
-	i = &index{c, f}
-	if len(c) == 0 {
+	i = &index{idx, f}
+	if idx.Size() == 0 {
 		err = rebuildIndex(name, i)
 	}
 	return
 }
 
 // load reads index file if presented into memory
-func loadIndex(fileName string) (cache, error) {
-	idx := make(cache)
+func loadIndex(fileName string) (art.Tree, error) {
+	idx := art.New()
 	f, err := os.Open(fileName)
 	defer f.Close()
 	if err != nil {
@@ -80,7 +79,7 @@ func loadIndex(fileName string) (cache, error) {
 			p := binary.BigEndian.Uint32(buf[0:intSize])
 			l := binary.BigEndian.Uint32(buf[intSize:doubleIntSize])
 			copy(score[:], buf[doubleIntSize:bufSize])
-			idx[score] = addr{int(p), int(l)}
+			idx.Insert(score[:], addr{int(p), int(l)})
 		}
 		if parseErr != nil && parseErr != io.EOF {
 			err = parseErr
@@ -126,17 +125,18 @@ func rebuildIndex(name string, i *index) error {
 
 // get returns an address for a given score if it's known
 func (i *index) get(score Score) (p, l int, ok bool) {
-	addr, ok := i.cache[score]
+	a, ok := i.Search(score[:])
 	if !ok {
 		return
 	}
-	p, l = addr[0], addr[1]
+	address := a.(addr)
+	p, l = address[0], address[1]
 	return
 }
 
 // put stores a given score and address
 func (i *index) put(score Score, p, l int) error {
-	if _, ok := i.cache[score]; ok {
+	if _, ok := i.Search(score[:]); ok {
 		return nil
 	}
 	buf := make([]byte, bufSize, bufSize)
@@ -147,13 +147,13 @@ func (i *index) put(score Score, p, l int) error {
 	if err != nil {
 		return err
 	}
-	i.cache[score] = addr{p, l}
+	i.Insert(score[:], addr{p, l})
 	return err
 }
 
 // close releases cache and closes an index file handler
 func (i *index) close() error {
-	i.cache = make(cache)
+	i.Tree = art.New()
 	return i.Close()
 }
 
