@@ -1,4 +1,4 @@
-# Diechi
+# Dieci
 [![Build Status](https://travis-ci.com/eiri/dieci.svg?branch=master)](https://travis-ci.com/eiri/dieci)
 [![Go Report Card](https://goreportcard.com/badge/github.com/eiri/dieci)](https://goreportcard.com/report/github.com/eiri/dieci)
 
