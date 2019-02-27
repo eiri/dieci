@@ -2,6 +2,7 @@ package dieci
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -198,4 +199,25 @@ func TestIndexDelete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func copyGoldenFile(name string) error {
+	if _, err := os.Stat(name); !os.IsNotExist(err) {
+		os.Remove(name)
+	}
+	src, err := os.Open(name + ".golden")
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	dst, err := os.Create(name)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		dst.Sync()
+		dst.Close()
+	}()
+	_, err = io.Copy(dst, src)
+	return err
 }
