@@ -86,16 +86,11 @@ func TestDataLog(t *testing.T) {
 }
 
 func prepareDatalogFile() (string, error) {
-	buf := makeFakeScore()
+	buf := make([]byte, 16)
+	rand.Read(buf)
 	name := hex.EncodeToString(buf)
-	// and touch datalog file
+	// and create and empty datalog file
 	f, err := os.Create(fmt.Sprintf("%s.data", name))
 	defer f.Close()
 	return name, err
-}
-
-func makeFakeScore() []byte {
-	buf := make([]byte, 16)
-	rand.Read(buf)
-	return buf
 }
