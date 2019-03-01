@@ -2,12 +2,11 @@ package dieci_test
 
 import (
 	"crypto/rand"
-	"fmt"
 	"os"
-	"reflect"
 	"testing"
 
 	"github.com/eiri/dieci"
+	"github.com/stretchr/testify/require"
 )
 
 type kv struct {
@@ -15,30 +14,88 @@ type kv struct {
 	data  []byte
 }
 
-var kvs []kv
 var storeName string
+var kvs []kv
 
-// TestNew to ensure we can create a new storage
-func TestNew(t *testing.T) {
-	s, err := dieci.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-	storeName = s.Name()
-	_, err = os.Stat(fmt.Sprintf("%s.data", storeName))
-	if err != nil {
-		t.Fatal(err)
-	}
-}
+func TestAPI(t *testing.T) {
+	assert := require.New(t)
+	var name string
+	kvs := make([]kv, 5)
 
-// TestOpen to ensure we can open an existing storage
-func TestOpen(t *testing.T) {
-	s, err := dieci.Open(storeName)
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.Close()
+	t.Run("new", func(t *testing.T) {
+		ds, err := dieci.New()
+		assert.NoError(err)
+		name = ds.Name()
+		ds.Close()
+		assert.FileExists(name + ".data")
+	})
+
+	t.Run("open", func(t *testing.T) {
+		ds, err := dieci.Open(name)
+		assert.NoError(err)
+		ds.Close()
+	})
+
+	t.Run("write", func(t *testing.T) {
+		ds, err := dieci.Open(name)
+		assert.NoError(err)
+		defer ds.Close()
+		for i, dataSize := range []int{2100, 1200, 4200, 500, 1700} {
+			data := make([]byte, dataSize)
+			_, err = rand.Read(data)
+			assert.NoError(err)
+			score, err := ds.Write(data)
+			assert.NoError(err)
+			stat, _ := os.Stat(name + ".data")
+			kvs[i] = kv{score: score, data: data}
+			// test deduplication
+			score2, err := ds.Write(data)
+			assert.NoError(err)
+			stat2, _ := os.Stat(name + ".data")
+			assert.Equal(score, score2, "Should return consistent score")
+			assert.Equal(stat.Size(), stat2.Size())
+		}
+	})
+
+	t.Run("read", func(t *testing.T) {
+		ds, err := dieci.Open(name)
+		assert.NoError(err)
+		defer ds.Close()
+		for _, i := range [5]int{1, 2, 0, 4, 3} {
+			kv := kvs[i]
+			data, err := ds.Read(kv.score)
+			assert.NoError(err)
+			assert.Equal(kv.data, data)
+		}
+	})
+
+	t.Run("read back", func(t *testing.T) {
+		for i := 0; i < 5; i++ {
+			ds, err := dieci.Open(name)
+			assert.NoError(err)
+			before := make([]byte, 1024)
+			rand.Read(before)
+			score, err := ds.Write(before)
+			assert.NoError(err)
+			after, err := ds.Read(score)
+			assert.NoError(err)
+			assert.Equal(before, after, "Should return stored data")
+			err = ds.Close()
+			assert.NoError(err)
+		}
+	})
+
+	t.Run("delete", func(t *testing.T) {
+		assert.FileExists(name + ".data")
+		ds, err := dieci.Open(name)
+		assert.NoError(err)
+		err = ds.Delete()
+		assert.NoError(err)
+		err = ds.Delete()
+		assert.Error(err, "Should return error on attempt of second delete")
+		_, err = os.Stat(name + ".data")
+		assert.Error(err, "Should remove store files")
+	})
 }
 
 // BenchmarkOpen for iterative improvement of open
@@ -49,42 +106,6 @@ func BenchmarkOpen(b *testing.B) {
 			b.Fatal(err)
 		}
 		s.Close()
-	}
-}
-
-// TestWrite to ensure we can write in the store
-func TestWrite(t *testing.T) {
-	kvs = make([]kv, 5)
-	s, err := dieci.Open(storeName)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-	dataFileName := fmt.Sprintf("%s.data", storeName)
-	for i, docSize := range []int{2100, 1200, 4200, 500, 1700} {
-		doc := make([]byte, docSize)
-		_, err = rand.Read(doc)
-		if err != nil {
-			t.Fatal(err)
-		}
-		score, err := s.Write(doc)
-		if err != nil {
-			t.Fatal(err)
-		}
-		kvs[i] = kv{score: score, data: doc}
-		// test deduplication
-		statBefore, _ := os.Stat(dataFileName)
-		score2, err := s.Write(doc)
-		if err != nil {
-			t.Fatal(err)
-		}
-		statAfter, _ := os.Stat(dataFileName)
-		if score != score2 {
-			t.Errorf("Expecting score be the same %s != %s", score, score2)
-		}
-		if statBefore.Size() != statAfter.Size() {
-			t.Errorf("Expecting store size be the same")
-		}
 	}
 }
 
@@ -114,25 +135,6 @@ func BenchmarkWrite(b *testing.B) {
 
 }
 
-// TestRead to ensure we can read from the store
-func TestRead(t *testing.T) {
-	s, err := dieci.Open(storeName)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-	for _, i := range [5]int{1, 2, 0, 4, 3} {
-		kv := kvs[i]
-		doc, err := s.Read(kv.score)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !reflect.DeepEqual(doc, kv.data) {
-			t.Error("Expecting store to return stored data")
-		}
-	}
-}
-
 // BenchmarkRead for iterative improvement of reads
 func BenchmarkRead(b *testing.B) {
 	s, err := dieci.Open("testdata/words")
@@ -149,47 +151,4 @@ func BenchmarkRead(b *testing.B) {
 	}
 	b.StopTimer()
 	s.Close()
-}
-
-// TestWriteRead to ensure we can read back written
-func TestWriteRead(t *testing.T) {
-	for i := 0; i < 5; i++ {
-		// write doc
-		s, err := dieci.Open(storeName)
-		if err != nil {
-			t.Fatal(err)
-		}
-		before := make([]byte, 1024)
-		rand.Read(before)
-		score, err := s.Write(before)
-		if err != nil {
-			t.Fatal(err)
-		}
-		after, err := s.Read(score)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !reflect.DeepEqual(after, before) {
-			t.Error("Expecting store to return stored data")
-		}
-		s.Close()
-	}
-}
-
-// TestDelete to ensure we can delete the store
-func TestDelete(t *testing.T) {
-	dataFileName := fmt.Sprintf("%s.data", storeName)
-	_, err := os.Stat(dataFileName)
-	if err != nil {
-		t.Fatal(err)
-	}
-	s, err := dieci.Open(storeName)
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.Delete()
-	_, err = os.Stat(dataFileName)
-	if !os.IsNotExist(err) {
-		t.Error("Expecting store file do not exist")
-	}
 }
