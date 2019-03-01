@@ -11,11 +11,8 @@ all: deps test ## get deps and run tests
 deps: ## install deps
 	go get -t ./...
 
-testdata/fox-dog.idx.golden:
-	cd testdata; go run make_fixtures.go
-
 .PHONY: test
-test: testdata/fox-dog.idx.golden clean-data ## run tests
+test: clean-data ## run tests
 	go test -v ./...
 
 testdata/words.data:
