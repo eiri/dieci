@@ -1,141 +1,102 @@
 package dieci
 
 import (
-	"bytes"
-	"io"
-	"io/ioutil"
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-// TestDataLogOpenClose to ensure we can open a datalog file
-func TestDataLogOpenClose(t *testing.T) {
-	// setup
-	name := filepath.Join("testdata", "fox-dog")
-	err := copyGoldenFile(name + ".data")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// tests
-	d, err := openDataLog(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if d.cur != 71 {
-		t.Fatalf("Expecting cursor be at 71, got %d", d.cur)
-	}
-	err = d.close()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if d.cur != 0 {
-		t.Fatalf("Expecting cursor be at 0, got %d", d.cur)
-	}
-}
+func TestDataLog(t *testing.T) {
+	assert := require.New(t)
+	name := randomName()
+	err := prepareDatalogFile(name)
+	assert.NoError(err)
 
-// TestDataLogGet to ensure we can read from a datalog
-func TestDataLogGet(t *testing.T) {
-	name := filepath.Join("testdata", "fox-dog")
-	d, err := openDataLog(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer d.close()
-	blocks := []addr{
-		{4, 3},
-		{11, 5},
-		{20, 5},
-		{29, 3},
-		{36, 5},
-		{45, 4},
-		{53, 3},
-		{60, 4},
-		{68, 3},
-	}
 	words := "The quick brown fox jumps over the lazy dog"
-	for i, w := range strings.Fields(words) {
-		p, l := blocks[i][0], blocks[i][1]
-		b, err := d.get(p, l)
-		if err != nil {
-			t.Fatal(err)
+
+	t.Run("open", func(t *testing.T) {
+		missing := randomName()
+		_, err := openDataLog(missing)
+		assert.Error(err)
+		dl, err := openDataLog(name)
+		defer dl.close()
+		assert.NoError(err)
+		assert.Equal(0, dl.cur, "Cursor should be on 0")
+	})
+
+	t.Run("put", func(t *testing.T) {
+		dl, err := openDataLog(name)
+		defer dl.close()
+		assert.NoError(err)
+		expectedPos := intSize
+		for _, word := range strings.Fields(words) {
+			data := []byte(word)
+			pos, size, err := dl.put(data)
+			assert.NoError(err)
+			assert.Equal(expectedPos, pos, "Position should move")
+			assert.Equal(pos+size, dl.cur, "Cursor should move")
+			expectedPos += size + intSize
 		}
-		if string(b) != w {
-			t.Fatalf("Expecting %s, got %q", w, string(b))
+	})
+
+	t.Run("get", func(t *testing.T) {
+		dl, err := openDataLog(name)
+		defer dl.close()
+		assert.NoError(err)
+		i, err := dl.Stat()
+		assert.NoError(err)
+		end := int(i.Size())
+		assert.EqualValues(end, dl.cur, "Cursor should be at EOF")
+		pos := 0
+		for _, word := range strings.Fields(words) {
+			expectedData := []byte(word)
+			pos += intSize
+			size := len(expectedData)
+			data, err := dl.get(pos, size)
+			assert.NoError(err)
+			assert.Equal(expectedData, data)
+			pos += size
 		}
-	}
+	})
+
+	t.Run("close", func(t *testing.T) {
+		dl, err := openDataLog(name)
+		assert.NoError(err)
+		i, err := dl.Stat()
+		assert.NoError(err)
+		end := int(i.Size())
+		assert.Equal(end, dl.cur, "Cursor should be at EOF")
+		err = dl.close()
+		assert.NoError(err)
+		assert.Equal(0, dl.cur, "Cursor should reset")
+		err = dl.close()
+		assert.Error(err, "Should return error on attempt to close again")
+	})
+
+	t.Run("delete", func(t *testing.T) {
+		dl, err := openDataLog(name)
+		assert.NoError(err)
+		err = dl.delete()
+		assert.NoError(err)
+		assert.Equal(0, dl.cur, "Cursor should reset")
+		err = dl.delete()
+		assert.Error(err, "Should return error on attempt of second delete")
+	})
 }
 
-// TestDataLogPut to ensure we can write into a datalog
-func TestDataLogPut(t *testing.T) {
-	// setup
-	name := filepath.Join("testdata", "fox-dog")
-	os.Remove(name + ".data")
-	f, err := os.Create(name + ".data")
-	if err != nil {
-		t.Fatal(err)
-	}
-	f.Close()
-	// test
-	d, err := openDataLog(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer d.close()
-	if d.cur != 0 {
-		t.Fatalf("Expecting cursor to be at 0, got %b", d.cur)
-	}
-	words := "The quick brown fox jumps over the lazy dog"
-	for _, w := range strings.Fields(words) {
-		_, _, err := d.put([]byte(w))
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	stored, err := ioutil.ReadFile(name + ".data")
-	if err != nil {
-		t.Fatal(err)
-	}
-	expected, err := ioutil.ReadFile(name + ".data.golden")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(stored, expected) {
-		t.Fatal("Expected datalog to be identical to golden")
-	}
-}
-
-// TestDataLogDelete to ensure we can delete a datalog
-func TestDataLogDelete(t *testing.T) {
-	name := filepath.Join("testdata", "fox-dog")
-	d, err := openDataLog(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = d.delete()
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func copyGoldenFile(name string) error {
-	if _, err := os.Stat(name); !os.IsNotExist(err) {
-		os.Remove(name)
-	}
-	src, err := os.Open(name + ".golden")
-	if err != nil {
-		return err
-	}
-	defer src.Close()
-	dst, err := os.Create(name)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		dst.Sync()
-		dst.Close()
-	}()
-	_, err = io.Copy(dst, src)
+func prepareDatalogFile(name string) error {
+	f, err := os.Create(fmt.Sprintf("%s.data", name))
+	defer f.Close()
 	return err
+}
+
+func randomName() string {
+	buf := make([]byte, 16)
+	rand.Read(buf)
+	return hex.EncodeToString(buf)
 }
