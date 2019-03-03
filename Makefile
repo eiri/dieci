@@ -37,7 +37,7 @@ clean: clean-data ## clean up
 	rm -f *.bench
 	rm -f testdata/*.data
 	rm -f testdata/*.idx
-	rm -f testdata/*.golden
+	rm -f index-sizes
 
 .PHONY: clean-data
 clean-data: ## remove index and datalog files from the test runs
@@ -47,3 +47,8 @@ clean-data: ## remove index and datalog files from the test runs
 .PHONY: format
 format: ## format code
 	go fmt -x *.go
+
+.PHONY: index-sizes
+index-sizes: ## compare index sizes
+	@go build -o index-sizes $(CURDIR)/cmd/index-sizes/main.go
+	@$(CURDIR)/index-sizes

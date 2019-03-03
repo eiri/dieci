@@ -10,6 +10,8 @@
 *.dylib
 *.tgz
 *.zip
+index-sizes
+!cmd/index-sizes/
 
 # Test binary, build with `go test -c`
 *.test
