@@ -58,10 +58,6 @@ func (d *datalog) put(b []byte) (p, l int, err error) {
 	if err != nil {
 		return
 	}
-	err = d.Sync()
-	if err != nil {
-		return
-	}
 	p = d.cur + intSize
 	l = n - intSize
 	d.cur += n
