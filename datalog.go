@@ -6,75 +6,80 @@ import (
 	"os"
 )
 
-type datalogger interface {
-	get(p, l int) ([]byte, error)
-	put([]byte) (int, int, error)
-	close() error
-	delete() error
+// Datalogger is the interface for Datalog
+type Datalogger interface {
+	Open() error
+	Name() string
+	Read(pos, size int) ([]byte, error)
+	Write(data []byte) (pos, size int, err error)
+	Close() error
 }
 
-// datalog holds, in sequential order, the contents of every written block
-type datalog struct {
-	cur int
-	*os.File
+// Datalog represents a datalog file
+type Datalog struct {
+	name string
+	cur  int
+	rwc  *os.File
 }
 
-// openIndex opens the named index and loads its content in the memory cache
-func openDataLog(name string) (d *datalog, err error) {
-	fileName := fmt.Sprintf("%s.data", name)
+// NewDatalog returns a new datalog with the given name
+func NewDatalog(name string) *Datalog {
+	return &Datalog{name: name, cur: 0}
+}
+
+// Open opens the named datalog
+func (d *Datalog) Open() error {
+	fileName := fmt.Sprintf("%s.data", d.name)
 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_RDWR, 0600)
 	if err != nil {
-		return
+		return err
 	}
-	i, err := f.Stat()
+	stat, err := f.Stat()
 	if err != nil {
-		return
+		return err
 	}
-	d = &datalog{int(i.Size()), f}
-	return
+	d.rwc = f
+	d.cur = int(stat.Size())
+	return nil
 }
 
-// get returns a data block of the given length read from the given position
-func (d *datalog) get(p, l int) ([]byte, error) {
-	b := make([]byte, l)
-	n, err := d.ReadAt(b, int64(p))
-	if err != nil {
-		return b, err
-	}
-	if n != l {
-		err = fmt.Errorf("Read failed")
-	}
-	return b, err
+// Name returns name of datalog file
+func (d *Datalog) Name() string {
+	return d.rwc.Name()
 }
 
-// put stores the given data block and returns its length and position
-func (d *datalog) put(b []byte) (p, l int, err error) {
-	l = len(b)
-	bufSize := intSize + l
+// Read reads data for a given position and length
+func (d *Datalog) Read(pos, size int) ([]byte, error) {
+	data := make([]byte, size)
+	n, err := d.rwc.ReadAt(data, int64(pos))
+	if err != nil {
+		return nil, err
+	}
+	if n != size {
+		return nil, fmt.Errorf("Read failed")
+	}
+	return data, nil
+}
+
+// Write writes given data into datalog and returns it's position and length
+func (d *Datalog) Write(data []byte) (pos, size int, err error) {
+	size = len(data)
+	bufSize := intSize + size
 	buf := make([]byte, bufSize, bufSize)
-	binary.BigEndian.PutUint32(buf[0:intSize], uint32(l))
-	copy(buf[intSize:bufSize], b)
-	n, err := d.Write(buf)
+	binary.BigEndian.PutUint32(buf[0:intSize], uint32(size))
+	copy(buf[intSize:bufSize], data)
+	n, err := d.rwc.Write(buf)
 	if err != nil {
-		return
+		return 0, 0, err
 	}
-	p = d.cur + intSize
-	l = n - intSize
+	pos = int(d.cur) + intSize
+	size = n - intSize
 	d.cur += n
 	return
 }
 
-// close releases cache and closes an index file handler
-func (d *datalog) close() error {
+// Close closes the datalog
+func (d *Datalog) Close() error {
 	d.cur = 0
-	return d.Close()
-}
-
-// delete releases cache and closes and erases an index file
-func (d *datalog) delete() error {
-	err := d.close()
-	if err != nil {
-		return err
-	}
-	return os.Remove(d.Name())
+	return d.rwc.Close()
 }

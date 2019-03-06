@@ -11,32 +11,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestDataLog for compliance to Datalogger
 func TestDataLog(t *testing.T) {
 	assert := require.New(t)
 	name := randomName()
-	err := prepareDatalogFile(name)
+	err := createDatalogFile(name)
 	assert.NoError(err)
 
 	words := "The quick brown fox jumps over the lazy dog"
 
 	t.Run("open", func(t *testing.T) {
 		missing := randomName()
-		_, err := openDataLog(missing)
+		dl := NewDatalog(missing)
+		err := dl.Open()
 		assert.Error(err)
-		dl, err := openDataLog(name)
-		defer dl.close()
+		dl = NewDatalog(name)
+		err = dl.Open()
 		assert.NoError(err)
+		defer dl.Close()
 		assert.Equal(0, dl.cur, "Cursor should be on 0")
 	})
 
-	t.Run("put", func(t *testing.T) {
-		dl, err := openDataLog(name)
-		defer dl.close()
+	t.Run("write", func(t *testing.T) {
+		dl := NewDatalog(name)
+		err := dl.Open()
 		assert.NoError(err)
+		defer dl.Close()
 		expectedPos := intSize
 		for _, word := range strings.Fields(words) {
 			data := []byte(word)
-			pos, size, err := dl.put(data)
+			pos, size, err := dl.Write(data)
 			assert.NoError(err)
 			assert.Equal(expectedPos, pos, "Position should move")
 			assert.Equal(pos+size, dl.cur, "Cursor should move")
@@ -44,20 +48,21 @@ func TestDataLog(t *testing.T) {
 		}
 	})
 
-	t.Run("get", func(t *testing.T) {
-		dl, err := openDataLog(name)
-		defer dl.close()
+	t.Run("read", func(t *testing.T) {
+		dl := NewDatalog(name)
+		err := dl.Open()
 		assert.NoError(err)
-		i, err := dl.Stat()
+		defer dl.Close()
+		stat, err := dl.rwc.Stat()
 		assert.NoError(err)
-		end := int(i.Size())
+		end := int(stat.Size())
 		assert.EqualValues(end, dl.cur, "Cursor should be at EOF")
 		pos := 0
 		for _, word := range strings.Fields(words) {
 			expectedData := []byte(word)
 			pos += intSize
 			size := len(expectedData)
-			data, err := dl.get(pos, size)
+			data, err := dl.Read(pos, size)
 			assert.NoError(err)
 			assert.Equal(expectedData, data)
 			pos += size
@@ -65,34 +70,33 @@ func TestDataLog(t *testing.T) {
 	})
 
 	t.Run("close", func(t *testing.T) {
-		dl, err := openDataLog(name)
+		dl := NewDatalog(name)
+		err := dl.Open()
 		assert.NoError(err)
-		i, err := dl.Stat()
+		defer dl.Close()
+		stat, err := dl.rwc.Stat()
 		assert.NoError(err)
-		end := int(i.Size())
+		end := int(stat.Size())
 		assert.Equal(end, dl.cur, "Cursor should be at EOF")
-		err = dl.close()
+		err = dl.Close()
 		assert.NoError(err)
 		assert.Equal(0, dl.cur, "Cursor should reset")
-		err = dl.close()
+		err = dl.Close()
 		assert.Error(err, "Should return error on attempt to close again")
 	})
 
-	t.Run("delete", func(t *testing.T) {
-		dl, err := openDataLog(name)
-		assert.NoError(err)
-		err = dl.delete()
-		assert.NoError(err)
-		assert.Equal(0, dl.cur, "Cursor should reset")
-		err = dl.delete()
-		assert.Error(err, "Should return error on attempt of second delete")
-	})
+	err = removeDatalogFile(name)
+	assert.NoError(err)
 }
 
-func prepareDatalogFile(name string) error {
+func createDatalogFile(name string) error {
 	f, err := os.Create(fmt.Sprintf("%s.data", name))
 	defer f.Close()
 	return err
+}
+
+func removeDatalogFile(name string) error {
+	return os.Remove(fmt.Sprintf("%s.data", name))
 }
 
 func randomName() string {

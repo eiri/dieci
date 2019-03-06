@@ -15,11 +15,13 @@ const (
 	pageSize      = 4080 // ~4K to match memory page
 )
 
-type indexer interface {
-	get(score Score) (int, int, bool)
-	put(score Score, p, l int) error
-	close() error
-	delete() error
+// Indexer is the interface for Datalog's index
+type Indexer interface {
+	Open() error
+	Name() string
+	Read(score Score) (int, int, bool)
+	Write(score Score, p, l int) error
+	Close() error
 }
 
 // addr is index's address type alias
@@ -28,37 +30,50 @@ type addr [2]int
 // cache is in memory lookup store
 type cache map[Score]addr
 
-// index helps to locate a block in the data log given its score.
-type index struct {
+// Index represents an index of a datalog file
+type Index struct {
+	name  string
 	cache cache
-	*os.File
+	rwc   *os.File
 }
 
-// openIndex opens the named index and loads its content in the memory cache
-func openIndex(name string) (i *index, err error) {
-	fileName := fmt.Sprintf("%s.idx", name)
-	c, err := loadIndex(fileName)
+// NewIndex returns a new index structure with the given name
+func NewIndex(name string) *Index {
+	cache := make(cache, 0)
+	return &Index{name: name, cache: cache}
+}
+
+// Open opens the named index
+func (idx *Index) Open() error {
+	fileName := fmt.Sprintf("%s.idx", idx.name)
+	cache, err := loadCache(fileName)
 	if err != nil && !os.IsNotExist(err) {
-		return
+		return err
 	}
 	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
-		return
+		return err
 	}
-	i = &index{c, f}
-	if len(c) == 0 {
-		err = rebuildIndex(name, i)
+	idx.cache = cache
+	idx.rwc = f
+	if len(cache) == 0 {
+		err = idx.Rebuild()
 	}
-	return
+	return err
+}
+
+// Name returns name of index file
+func (idx *Index) Name() string {
+	return idx.rwc.Name()
 }
 
 // load reads index file if presented into memory
-func loadIndex(fileName string) (cache, error) {
-	idx := make(cache)
+func loadCache(fileName string) (cache, error) {
+	cache := make(cache)
 	f, err := os.Open(fileName)
 	defer f.Close()
 	if err != nil {
-		return idx, err
+		return cache, err
 	}
 	for {
 		var readError error
@@ -80,7 +95,7 @@ func loadIndex(fileName string) (cache, error) {
 			p := binary.BigEndian.Uint32(buf[0:intSize])
 			l := binary.BigEndian.Uint32(buf[intSize:doubleIntSize])
 			copy(score[:], buf[doubleIntSize:bufSize])
-			idx[score] = addr{int(p), int(l)}
+			cache[score] = addr{int(p), int(l)}
 		}
 		if parseErr != nil && parseErr != io.EOF {
 			err = parseErr
@@ -88,15 +103,14 @@ func loadIndex(fileName string) (cache, error) {
 		}
 	}
 	if err == io.EOF {
-		return idx, nil
+		return cache, nil
 	}
-	return idx, err
+	return cache, err
 }
 
-// rebuild reads data log and recreates index for it
-// FIXME! I'll need an iterator on data log here
-func rebuildIndex(name string, i *index) error {
-	f, err := os.Open(fmt.Sprintf("%s.data", name))
+// Rebuild is essentially scans datalog and build index and cache again
+func (idx *Index) Rebuild() error {
+	f, err := os.Open(fmt.Sprintf("%s.data", idx.name))
 	if err != nil {
 		return err
 	}
@@ -115,7 +129,7 @@ func rebuildIndex(name string, i *index) error {
 			break
 		}
 		score := MakeScore(buf)
-		err = i.put(score, p, l)
+		err = idx.Write(score, p, l)
 		if err != nil {
 			break
 		}
@@ -124,9 +138,9 @@ func rebuildIndex(name string, i *index) error {
 	return err
 }
 
-// get returns an address for a given score if it's known
-func (i *index) get(score Score) (p, l int, ok bool) {
-	addr, ok := i.cache[score]
+// Read reads address of data for a given score
+func (idx *Index) Read(score Score) (p, l int, ok bool) {
+	addr, ok := idx.cache[score]
 	if !ok {
 		return
 	}
@@ -134,34 +148,25 @@ func (i *index) get(score Score) (p, l int, ok bool) {
 	return
 }
 
-// put stores a given score and address
-func (i *index) put(score Score, p, l int) error {
-	if _, ok := i.cache[score]; ok {
+// Write writes given score into index file and adds it to the cache
+func (idx *Index) Write(score Score, p, l int) error {
+	if _, ok := idx.cache[score]; ok {
 		return nil
 	}
 	buf := make([]byte, bufSize, bufSize)
 	binary.BigEndian.PutUint32(buf[0:intSize], uint32(p))
 	binary.BigEndian.PutUint32(buf[intSize:doubleIntSize], uint32(l))
 	copy(buf[doubleIntSize:bufSize], score[:])
-	_, err := i.Write(buf)
+	_, err := idx.rwc.Write(buf)
 	if err != nil {
-		return err
+		return fmt.Errorf("Index write failed: %s", err)
 	}
-	i.cache[score] = addr{p, l}
+	idx.cache[score] = addr{p, l}
 	return err
 }
 
-// close releases cache and closes an index file handler
-func (i *index) close() error {
-	i.cache = make(cache)
-	return i.Close()
-}
-
-// delete releases cache and closes and erases an index file
-func (i *index) delete() error {
-	err := i.close()
-	if err != nil {
-		return err
-	}
-	return os.Remove(i.Name())
+// Close closes the index and resets the cache
+func (idx *Index) Close() error {
+	idx.cache = make(cache)
+	return idx.rwc.Close()
 }

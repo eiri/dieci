@@ -11,8 +11,8 @@ import (
 // Store represents a data store.
 type Store struct {
 	name  string
-	data  datalogger
-	index indexer
+	data  Datalogger
+	index Indexer
 }
 
 // New creates a new empty storage
@@ -34,11 +34,13 @@ func New() (s *Store, err error) {
 
 // Open opens provided storage
 func Open(name string) (s *Store, err error) {
-	data, err := openDataLog(name)
+	data := NewDatalog(name)
+	err = data.Open()
 	if err != nil {
 		return
 	}
-	idx, err := openIndex(name)
+	idx := NewIndex(name)
+	err = idx.Open()
 	if err != nil {
 		return
 	}
@@ -57,12 +59,12 @@ func (s *Store) Name() string {
 
 // Read a data for a given score
 func (s *Store) Read(score Score) (b []byte, err error) {
-	p, l, ok := s.index.get(score)
+	p, l, ok := s.index.Read(score)
 	if !ok {
 		err = fmt.Errorf("Unknown score %s", score)
 		return
 	}
-	b, err = s.data.get(p, l)
+	b, err = s.data.Read(p, l)
 	if score != MakeScore(b) {
 		b = nil
 		err = fmt.Errorf("Checksum failure")
@@ -73,14 +75,14 @@ func (s *Store) Read(score Score) (b []byte, err error) {
 // Write given data and return it's score
 func (s *Store) Write(b []byte) (score Score, err error) {
 	score = MakeScore(b)
-	if _, _, ok := s.index.get(score); ok {
+	if _, _, ok := s.index.Read(score); ok {
 		return
 	}
-	p, l, err := s.data.put(b)
+	p, l, err := s.data.Write(b)
 	if err != nil {
 		return
 	}
-	err = s.index.put(score, p, l)
+	err = s.index.Write(score, p, l)
 	if err != nil {
 		return
 	}
@@ -89,16 +91,22 @@ func (s *Store) Write(b []byte) (score Score, err error) {
 
 // Close provided storage
 func (s *Store) Close() error {
-	if err := s.index.close(); err != nil {
+	if err := s.index.Close(); err != nil {
 		return err
 	}
-	return s.data.close()
+	return s.data.Close()
 }
 
 // Delete provided storage
 func (s *Store) Delete() error {
-	if err := s.index.delete(); err != nil {
-		return err
+	var err error
+	idxName := s.index.Name()
+	if err = s.index.Close(); err == nil {
+		err = os.Remove(idxName)
 	}
-	return s.data.delete()
+	dlName := s.data.Name()
+	if err = s.data.Close(); err == nil {
+		err = os.Remove(dlName)
+	}
+	return err
 }
