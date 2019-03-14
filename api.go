@@ -78,7 +78,7 @@ func (s *Store) Write(b []byte) (score Score, err error) {
 	if _, _, ok := s.index.Read(score); ok {
 		return
 	}
-	p, l, err := s.data.Write(b)
+	p, l, err := s.data.Write(score, b)
 	if err != nil {
 		return
 	}

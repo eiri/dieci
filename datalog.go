@@ -11,7 +11,7 @@ type Datalogger interface {
 	Open() error
 	Name() string
 	Read(pos, size int) ([]byte, error)
-	Write(data []byte) (pos, size int, err error)
+	Write(score Score, data []byte) (pos, size int, err error)
 	Close() error
 }
 
@@ -50,24 +50,26 @@ func (d *Datalog) Name() string {
 
 // Read reads data for a given position and length
 func (d *Datalog) Read(pos, size int) ([]byte, error) {
-	data := make([]byte, size)
-	n, err := d.rwc.ReadAt(data, int64(pos))
+	data := make([]byte, size-scoreSize)
+	n, err := d.rwc.ReadAt(data, int64(pos+scoreSize))
 	if err != nil {
 		return nil, err
 	}
-	if n != size {
+	if n != size-scoreSize {
 		return nil, fmt.Errorf("Read failed")
 	}
 	return data, nil
 }
 
 // Write writes given data into datalog and returns it's position and length
-func (d *Datalog) Write(data []byte) (pos, size int, err error) {
-	size = len(data)
-	bufSize := intSize + size
-	buf := make([]byte, bufSize, bufSize)
-	binary.BigEndian.PutUint32(buf[0:intSize], uint32(size))
-	copy(buf[intSize:bufSize], data)
+func (d *Datalog) Write(score Score, data []byte) (pos, size int, err error) {
+	size = len(data) + scoreSize
+	buf := make([]byte, intSize+size)
+	binary.BigEndian.PutUint32(buf, uint32(size))
+	// buf = append(buf, score[:]...)
+	// buf = append(buf, data...)
+	copy(buf[intSize:], score[:])
+	copy(buf[intSize+scoreSize:], data)
 	n, err := d.rwc.Write(buf)
 	if err != nil {
 		return 0, 0, err

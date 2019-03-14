@@ -123,9 +123,9 @@ func TestIndexRebuild(t *testing.T) {
 	expectedCache := make(cache)
 	for _, word := range strings.Fields(words) {
 		data := []byte(word)
-		pos, size, err := dl.Write(data)
-		assert.NoError(err)
 		score := MakeScore(data)
+		pos, size, err := dl.Write(score, data)
+		assert.NoError(err)
 		expectedCache[score] = addr{pos, size}
 	}
 	dl.Close()

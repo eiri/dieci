@@ -123,17 +123,19 @@ func (idx *Index) Rebuild() error {
 			break
 		}
 		l := int(binary.BigEndian.Uint32(lBuf))
-		buf := make([]byte, l)
+		buf := make([]byte, scoreSize)
 		if _, err = f.Read(buf); err == io.EOF {
 			err = nil
 			break
 		}
-		score := MakeScore(buf)
+		var score Score
+		copy(score[:], buf)
 		err = idx.Write(score, p, l)
 		if err != nil {
 			break
 		}
 		p += l + intSize
+		f.Seek(int64(l-scoreSize), 1)
 	}
 	return err
 }
