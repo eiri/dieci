@@ -40,7 +40,8 @@ func TestDataLog(t *testing.T) {
 		expectedPos := intSize
 		for _, word := range strings.Fields(words) {
 			data := []byte(word)
-			pos, size, err := dl.Write(data)
+			score := MakeScore(data)
+			pos, size, err := dl.Write(score, data)
 			assert.NoError(err)
 			assert.Equal(expectedPos, pos, "Position should move")
 			assert.Equal(pos+size, dl.cur, "Cursor should move")
@@ -61,7 +62,7 @@ func TestDataLog(t *testing.T) {
 		for _, word := range strings.Fields(words) {
 			expectedData := []byte(word)
 			pos += intSize
-			size := len(expectedData)
+			size := len(expectedData) + scoreSize
 			data, err := dl.Read(pos, size)
 			assert.NoError(err)
 			assert.Equal(expectedData, data)

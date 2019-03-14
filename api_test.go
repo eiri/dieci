@@ -132,7 +132,6 @@ func BenchmarkWrite(b *testing.B) {
 	}
 	b.StopTimer()
 	s.Delete()
-
 }
 
 // BenchmarkRead for iterative improvement of reads
