@@ -66,8 +66,6 @@ func (d *Datalog) Write(score Score, data []byte) (pos, size int, err error) {
 	size = len(data) + scoreSize
 	buf := make([]byte, intSize+size)
 	binary.BigEndian.PutUint32(buf, uint32(size))
-	// buf = append(buf, score[:]...)
-	// buf = append(buf, data...)
 	copy(buf[intSize:], score[:])
 	copy(buf[intSize+scoreSize:], data)
 	n, err := d.rwc.Write(buf)
