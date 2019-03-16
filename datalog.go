@@ -9,17 +9,17 @@ import (
 // Datalogger is the interface for Datalog
 type Datalogger interface {
 	Open() error
-	Name() string
-	Read(pos, size int) ([]byte, error)
-	Write(score Score, data []byte) (pos, size int, err error)
+	Read(score Score) (data []byte, err error)
+	Write(data []byte) (score Score, err error)
 	Close() error
 }
 
 // Datalog represents a datalog file
 type Datalog struct {
-	name string
-	cur  int
-	rwc  *os.File
+	name  string
+	index Indexer
+	cur   int
+	rwc   *os.File
 }
 
 // NewDatalog returns a new datalog with the given name
@@ -38,18 +38,24 @@ func (d *Datalog) Open() error {
 	if err != nil {
 		return err
 	}
+	idx := NewIndex(d.name)
+	err = idx.Open()
+	if err != nil {
+		return err
+	}
 	d.rwc = f
 	d.cur = int(stat.Size())
+	d.index = idx
 	return nil
 }
 
-// Name returns name of datalog file
-func (d *Datalog) Name() string {
-	return d.rwc.Name()
-}
-
 // Read reads data for a given position and length
-func (d *Datalog) Read(pos, size int) ([]byte, error) {
+func (d *Datalog) Read(score Score) ([]byte, error) {
+	pos, size, ok := d.index.Read(score)
+	if !ok {
+		err := fmt.Errorf("Unknown score %s", score)
+		return nil, err
+	}
 	data := make([]byte, size-scoreSize)
 	n, err := d.rwc.ReadAt(data, int64(pos+scoreSize))
 	if err != nil {
@@ -62,24 +68,35 @@ func (d *Datalog) Read(pos, size int) ([]byte, error) {
 }
 
 // Write writes given data into datalog and returns it's position and length
-func (d *Datalog) Write(score Score, data []byte) (pos, size int, err error) {
-	size = len(data) + scoreSize
+func (d *Datalog) Write(data []byte) (Score, error) {
+	score := MakeScore(data)
+	if _, _, ok := d.index.Read(score); ok {
+		return score, nil
+	}
+	size := len(data) + scoreSize
 	buf := make([]byte, intSize+size)
 	binary.BigEndian.PutUint32(buf, uint32(size))
 	copy(buf[intSize:], score[:])
 	copy(buf[intSize+scoreSize:], data)
 	n, err := d.rwc.Write(buf)
 	if err != nil {
-		return 0, 0, err
+		return Score{}, err
 	}
-	pos = int(d.cur) + intSize
+	pos := int(d.cur) + intSize
 	size = n - intSize
 	d.cur += n
-	return
+	err = d.index.Write(score, pos, size)
+	if err != nil {
+		return Score{}, err
+	}
+	return score, nil
 }
 
 // Close closes the datalog
 func (d *Datalog) Close() error {
+	if err := d.index.Close(); err != nil {
+		return err
+	}
 	d.cur = 0
 	return d.rwc.Close()
 }

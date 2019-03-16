@@ -18,7 +18,6 @@ const (
 // Indexer is the interface for Datalog's index
 type Indexer interface {
 	Open() error
-	Name() string
 	Read(score Score) (int, int, bool)
 	Write(score Score, p, l int) error
 	Close() error
@@ -60,11 +59,6 @@ func (idx *Index) Open() error {
 		err = idx.Rebuild()
 	}
 	return err
-}
-
-// Name returns name of index file
-func (idx *Index) Name() string {
-	return idx.rwc.Name()
 }
 
 // load reads index file if presented into memory

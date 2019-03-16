@@ -120,13 +120,16 @@ func TestIndexRebuild(t *testing.T) {
 	dl := NewDatalog(name)
 	err = dl.Open()
 	assert.NoError(err)
+	pos := intSize
 	expectedCache := make(cache)
 	for _, word := range strings.Fields(words) {
 		data := []byte(word)
-		score := MakeScore(data)
-		pos, size, err := dl.Write(score, data)
+		//score := MakeScore(data)
+		score, err := dl.Write(data)
 		assert.NoError(err)
+		size := len(data) + scoreSize
 		expectedCache[score] = addr{pos, size}
+		pos += size + intSize
 	}
 	dl.Close()
 	// create an empty index and trigger rebuild by opening it
