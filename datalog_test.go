@@ -37,15 +37,15 @@ func TestDataLog(t *testing.T) {
 		err := dl.Open()
 		assert.NoError(err)
 		defer dl.Close()
-		expectedPos := intSize
+		prevCur := dl.cur
 		for _, word := range strings.Fields(words) {
 			data := []byte(word)
-			score := MakeScore(data)
-			pos, size, err := dl.Write(score, data)
+			expectedScore := MakeScore(data)
+			score, err := dl.Write(data)
 			assert.NoError(err)
-			assert.Equal(expectedPos, pos, "Position should move")
-			assert.Equal(pos+size, dl.cur, "Cursor should move")
-			expectedPos += size + intSize
+			assert.Equal(expectedScore, score)
+			assert.True(dl.cur > prevCur, "Cursor should move")
+			prevCur = dl.cur
 		}
 	})
 
@@ -58,15 +58,12 @@ func TestDataLog(t *testing.T) {
 		assert.NoError(err)
 		end := int(stat.Size())
 		assert.EqualValues(end, dl.cur, "Cursor should be at EOF")
-		pos := 0
 		for _, word := range strings.Fields(words) {
 			expectedData := []byte(word)
-			pos += intSize
-			size := len(expectedData) + scoreSize
-			data, err := dl.Read(pos, size)
+			score := MakeScore(expectedData)
+			data, err := dl.Read(score)
 			assert.NoError(err)
 			assert.Equal(expectedData, data)
-			pos += size
 		}
 	})
 
