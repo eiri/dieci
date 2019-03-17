@@ -68,7 +68,7 @@ func (d *Datalog) RebuildIndex() error {
 		size := int(binary.BigEndian.Uint32(buf[:intSize]))
 		var score Score
 		copy(score[:], buf[intSize:])
-		err = d.index.Write(score, pos, size)
+		err = d.index.Write(score, Addr{pos: pos, size: size})
 		if err != nil {
 			break
 		}
@@ -80,17 +80,17 @@ func (d *Datalog) RebuildIndex() error {
 
 // Read reads data for a given position and length
 func (d *Datalog) Read(score Score) ([]byte, error) {
-	pos, size, ok := d.index.Read(score)
+	a, ok := d.index.Read(score)
 	if !ok {
 		err := fmt.Errorf("Unknown score %s", score)
 		return nil, err
 	}
-	data := make([]byte, size-scoreSize)
-	n, err := d.rwc.ReadAt(data, int64(pos+scoreSize))
+	data := make([]byte, a.size-scoreSize)
+	n, err := d.rwc.ReadAt(data, int64(a.pos+scoreSize))
 	if err != nil {
 		return nil, err
 	}
-	if n != size-scoreSize {
+	if n != a.size-scoreSize {
 		return nil, fmt.Errorf("Read failed")
 	}
 	return data, nil
@@ -99,7 +99,7 @@ func (d *Datalog) Read(score Score) ([]byte, error) {
 // Write writes given data into datalog and returns it's position and length
 func (d *Datalog) Write(data []byte) (Score, error) {
 	score := MakeScore(data)
-	if _, _, ok := d.index.Read(score); ok {
+	if _, ok := d.index.Read(score); ok {
 		return score, nil
 	}
 	size := len(data) + scoreSize
@@ -114,7 +114,7 @@ func (d *Datalog) Write(data []byte) (Score, error) {
 	pos := int(d.cur) + intSize
 	size = n - intSize
 	d.cur += n
-	err = d.index.Write(score, pos, size)
+	err = d.index.Write(score, Addr{pos: pos, size: size})
 	if err != nil {
 		return Score{}, err
 	}
