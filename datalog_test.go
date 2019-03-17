@@ -87,6 +87,45 @@ func TestDataLog(t *testing.T) {
 	assert.NoError(err)
 }
 
+// BenchmarkRebuildIndex isolated
+func BenchmarkRebuildIndex(b *testing.B) {
+	// open data file
+	name := "testdata/words"
+	f, err := os.Open(name + ".data")
+	if err != nil {
+		b.Fatal(err)
+	}
+	stat, err := f.Stat()
+	if err != nil {
+		b.Fatal(err)
+	}
+	dl := &Datalog{name: name, cur: int(stat.Size()), rwc: f}
+	for n := 0; n < b.N; n++ {
+		// create an empty index and set it to datalog
+		idxName := randomName()
+		idx := NewIndex(idxName)
+		idxF, err := os.Create(idxName + ".idx")
+		if err != nil {
+			b.Fatal(err)
+		}
+		idx.rwc = idxF
+		dl.index = idx
+		// isolated test
+		b.ResetTimer()
+		err = dl.RebuildIndex()
+		if err != nil {
+			b.Fatal(err)
+		}
+		b.StopTimer()
+		if len(idx.cache) != 235886 {
+			b.Fatal("expected index cache to be fully propagated")
+		}
+		idx.Close()
+		os.Remove(idxName + ".idx")
+	}
+	dl.Close()
+}
+
 func createDatalogFile(name string) error {
 	f, err := os.Create(fmt.Sprintf("%s.data", name))
 	defer f.Close()

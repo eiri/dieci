@@ -57,6 +57,7 @@ func (d *Datalog) Open() error {
 // RebuildIndex by scaning datalog and writing cache again
 func (d *Datalog) RebuildIndex() error {
 	var err error
+	d.rwc.Seek(0, 0)
 	pos := intSize
 	buf := make([]byte, intSize+scoreSize)
 	for {
