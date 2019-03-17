@@ -58,20 +58,15 @@ func (d *Datalog) Open() error {
 func (d *Datalog) RebuildIndex() error {
 	var err error
 	pos := intSize
-	lBuf := make([]byte, intSize)
+	buf := make([]byte, intSize+scoreSize)
 	for {
-		if _, err = d.rwc.Read(lBuf); err == io.EOF {
-			err = nil
-			break
-		}
-		size := int(binary.BigEndian.Uint32(lBuf))
-		buf := make([]byte, scoreSize)
 		if _, err = d.rwc.Read(buf); err == io.EOF {
 			err = nil
 			break
 		}
+		size := int(binary.BigEndian.Uint32(buf[:intSize]))
 		var score Score
-		copy(score[:], buf)
+		copy(score[:], buf[intSize:])
 		err = d.index.Write(score, pos, size)
 		if err != nil {
 			break
