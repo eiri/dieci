@@ -33,11 +33,11 @@ func TestIndex(t *testing.T) {
 			data := []byte(word)
 			size := len(data)
 			score := MakeScore(data)
-			expAddr := addr{pos, size}
-			err := idx.Write(score, pos, size)
+			expAddr := Addr{pos, size}
+			err := idx.Write(score, Addr{pos: pos, size: size})
 			assert.NoError(err)
 			assert.Equal(expAddr, idx.cache[score])
-			err = idx.Write(score, 0, 0)
+			err = idx.Write(score, Addr{pos: 0, size: 0})
 			assert.NoError(err)
 			assert.Equal(expAddr, idx.cache[score], "Should ignore update")
 		}
@@ -52,15 +52,15 @@ func TestIndex(t *testing.T) {
 			data := []byte(word)
 			size := len(data)
 			score := MakeScore(data)
-			p, l, ok := idx.Read(score)
-			assert.Equal(pos, p, "Should return correct position")
-			assert.Equal(size, l, "Should return correct size")
+			a, ok := idx.Read(score)
+			assert.Equal(pos, a.pos, "Should return correct position")
+			assert.Equal(size, a.size, "Should return correct size")
 			assert.True(ok, "Should indicate that score exists")
 		}
 		score := MakeScore([]byte("missing"))
-		p, l, ok := idx.Read(score)
-		assert.Empty(p, "Should return 0 position for missing score")
-		assert.Empty(l, "Should return 0 size for missing score")
+		a, ok := idx.Read(score)
+		assert.Empty(a.pos, "Should return 0 position for missing score")
+		assert.Empty(a.size, "Should return 0 size for missing score")
 		assert.False(ok, "Should indicate that score doesn't exists")
 	})
 
@@ -119,7 +119,7 @@ func TestIndexRebuild(t *testing.T) {
 		score, err := dl.Write(data)
 		assert.NoError(err)
 		size := len(data) + scoreSize
-		expectedCache[score] = addr{pos, size}
+		expectedCache[score] = Addr{pos: pos, size: size}
 		pos += size + intSize
 	}
 	dl.Close()

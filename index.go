@@ -18,16 +18,19 @@ const (
 // Indexer is the interface for Datalog's index
 type Indexer interface {
 	Open() error
-	Read(score Score) (int, int, bool)
-	Write(score Score, p, l int) error
+	Read(score Score) (Addr, bool)
+	Write(score Score, a Addr) error
 	Close() error
 }
 
-// addr is index's address type alias
-type addr [2]int
+// Addr is data position and size in datalog
+type Addr struct {
+	pos  int
+	size int
+}
 
 // cache is in memory lookup store
-type cache map[Score]addr
+type cache map[Score]Addr
 
 // Index represents an index of a datalog file
 type Index struct {
@@ -83,10 +86,10 @@ func loadCache(fileName string) (cache, error) {
 			if parseErr != nil {
 				break
 			}
-			p := binary.BigEndian.Uint32(buf[0:intSize])
-			l := binary.BigEndian.Uint32(buf[intSize:doubleIntSize])
+			pos := binary.BigEndian.Uint32(buf[0:intSize])
+			size := binary.BigEndian.Uint32(buf[intSize:doubleIntSize])
 			copy(score[:], buf[doubleIntSize:bufSize])
-			cache[score] = addr{int(p), int(l)}
+			cache[score] = Addr{pos: int(pos), size: int(size)}
 		}
 		if parseErr != nil && parseErr != io.EOF {
 			err = parseErr
@@ -100,30 +103,26 @@ func loadCache(fileName string) (cache, error) {
 }
 
 // Read reads address of data for a given score
-func (idx *Index) Read(score Score) (p, l int, ok bool) {
-	addr, ok := idx.cache[score]
-	if !ok {
-		return
-	}
-	p, l = addr[0], addr[1]
+func (idx *Index) Read(score Score) (a Addr, ok bool) {
+	a, ok = idx.cache[score]
 	return
 }
 
 // Write writes given score into index file and adds it to the cache
-func (idx *Index) Write(score Score, p, l int) error {
+func (idx *Index) Write(score Score, a Addr) error {
 	if _, ok := idx.cache[score]; ok {
 		return nil
 	}
 	buf := make([]byte, bufSize, bufSize)
-	binary.BigEndian.PutUint32(buf[0:intSize], uint32(p))
-	binary.BigEndian.PutUint32(buf[intSize:doubleIntSize], uint32(l))
+	binary.BigEndian.PutUint32(buf[0:intSize], uint32(a.pos))
+	binary.BigEndian.PutUint32(buf[intSize:doubleIntSize], uint32(a.size))
 	copy(buf[doubleIntSize:bufSize], score[:])
 	_, err := idx.rwc.Write(buf)
 	if err != nil {
 		return fmt.Errorf("Index write failed: %s", err)
 	}
-	idx.cache[score] = addr{p, l}
-	return err
+	idx.cache[score] = a
+	return nil
 }
 
 // Close closes the index and resets the cache
