@@ -3,6 +3,7 @@ package dieci
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -38,15 +39,47 @@ func (d *Datalog) Open() error {
 	if err != nil {
 		return err
 	}
+	d.rwc = f
+	d.cur = int(stat.Size())
+
 	idx := NewIndex(d.name)
 	err = idx.Open()
 	if err != nil {
 		return err
 	}
-	d.rwc = f
-	d.cur = int(stat.Size())
 	d.index = idx
-	return nil
+	if len(idx.cache) == 0 {
+		err = d.RebuildIndex()
+	}
+	return err
+}
+
+// RebuildIndex by scaning datalog and writing cache again
+func (d *Datalog) RebuildIndex() error {
+	var err error
+	pos := intSize
+	lBuf := make([]byte, intSize)
+	for {
+		if _, err = d.rwc.Read(lBuf); err == io.EOF {
+			err = nil
+			break
+		}
+		size := int(binary.BigEndian.Uint32(lBuf))
+		buf := make([]byte, scoreSize)
+		if _, err = d.rwc.Read(buf); err == io.EOF {
+			err = nil
+			break
+		}
+		var score Score
+		copy(score[:], buf)
+		err = d.index.Write(score, pos, size)
+		if err != nil {
+			break
+		}
+		pos += size + intSize
+		d.rwc.Seek(int64(size-scoreSize), 1)
+	}
+	return err
 }
 
 // Read reads data for a given position and length

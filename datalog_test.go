@@ -94,6 +94,7 @@ func createDatalogFile(name string) error {
 }
 
 func removeDatalogFile(name string) error {
+	os.Remove(fmt.Sprintf("%s.idx", name))
 	return os.Remove(fmt.Sprintf("%s.data", name))
 }
 

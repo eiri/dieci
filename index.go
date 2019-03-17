@@ -55,10 +55,7 @@ func (idx *Index) Open() error {
 	}
 	idx.cache = cache
 	idx.rwc = f
-	if len(cache) == 0 {
-		err = idx.Rebuild()
-	}
-	return err
+	return nil
 }
 
 // load reads index file if presented into memory
@@ -100,38 +97,6 @@ func loadCache(fileName string) (cache, error) {
 		return cache, nil
 	}
 	return cache, err
-}
-
-// Rebuild is essentially scans datalog and build index and cache again
-func (idx *Index) Rebuild() error {
-	f, err := os.Open(fmt.Sprintf("%s.data", idx.name))
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	p := intSize
-	lBuf := make([]byte, intSize)
-	for {
-		if _, err = f.Read(lBuf); err == io.EOF {
-			err = nil
-			break
-		}
-		l := int(binary.BigEndian.Uint32(lBuf))
-		buf := make([]byte, scoreSize)
-		if _, err = f.Read(buf); err == io.EOF {
-			err = nil
-			break
-		}
-		var score Score
-		copy(score[:], buf)
-		err = idx.Write(score, p, l)
-		if err != nil {
-			break
-		}
-		p += l + intSize
-		f.Seek(int64(l-scoreSize), 1)
-	}
-	return err
 }
 
 // Read reads address of data for a given score

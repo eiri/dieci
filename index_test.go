@@ -1,7 +1,6 @@
 package dieci
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -18,13 +17,7 @@ func TestIndex(t *testing.T) {
 	words := "The quick brown fox jumps over the lazy dog"
 
 	t.Run("open", func(t *testing.T) {
-		missing := randomName()
-		idx := NewIndex(missing)
-		err := idx.Open()
-		assert.Error(err)
-		// cleanup empty index
-		os.Remove(missing + ".idx")
-		idx = NewIndex(name)
+		idx := NewIndex(name)
 		err = idx.Open()
 		defer idx.Close()
 		assert.NoError(err)
@@ -93,8 +86,6 @@ func TestIndex(t *testing.T) {
 	// cleanup
 	err = removeDatalogFile(name)
 	assert.NoError(err)
-	err = os.Remove(name + ".idx")
-	assert.NoError(err)
 }
 
 // BenchmarkIndexLoad for iterative improvement of open
@@ -145,7 +136,5 @@ func TestIndexRebuild(t *testing.T) {
 	assert.Equal(expectedCache, idx.cache)
 	// cleanup
 	err = removeDatalogFile(name)
-	assert.NoError(err)
-	err = os.Remove(name + ".idx")
 	assert.NoError(err)
 }
