@@ -41,65 +41,59 @@ type Index struct {
 
 // NewIndex returns a new index structure with the given name
 func NewIndex(name string) *Index {
-	cache := make(cache, 0)
-	return &Index{name: name, cache: cache}
+	return &Index{name: name, cache: make(cache)}
 }
 
 // Open opens the named index
 func (idx *Index) Open() error {
 	fileName := fmt.Sprintf("%s.idx", idx.name)
-	cache, err := loadCache(fileName)
-	if err != nil && !os.IsNotExist(err) {
+	if f, err := os.Open(fileName); err == nil {
+		err = idx.Load(f)
+		f.Close()
+		if err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
 		return err
 	}
 	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
-	idx.cache = cache
 	idx.rwc = f
 	return nil
 }
 
-// load reads index file if presented into memory
-func loadCache(fileName string) (cache, error) {
-	cache := make(cache)
-	f, err := os.Open(fileName)
-	defer f.Close()
-	if err != nil {
-		return cache, err
-	}
+// Load cache from giver Reader
+func (idx *Index) Load(r io.Reader) error {
+	idx.cache = make(cache)
 	for {
-		var readError error
 		page := make([]byte, pageSize, pageSize)
-		n, readError := f.Read(page)
-		if readError != nil {
-			err = readError
+		n, err := r.Read(page)
+		if err != nil && err != io.EOF {
+			return err
+		}
+		if err == io.EOF {
 			break
 		}
-		var parseErr error
-		r := bytes.NewReader(page[:n])
+		br := bytes.NewReader(page[:n])
 		for {
 			var score Score
 			buf := make([]byte, bufSize, bufSize)
-			_, parseErr := r.Read(buf)
-			if parseErr != nil {
+			_, err := br.Read(buf)
+			if err != nil && err != io.EOF {
+				return err
+			}
+			if err == io.EOF {
 				break
 			}
 			pos := binary.BigEndian.Uint32(buf[0:intSize])
 			size := binary.BigEndian.Uint32(buf[intSize:doubleIntSize])
 			copy(score[:], buf[doubleIntSize:bufSize])
-			cache[score] = Addr{pos: int(pos), size: int(size)}
-		}
-		if parseErr != nil && parseErr != io.EOF {
-			err = parseErr
-			break
+			idx.cache[score] = Addr{pos: int(pos), size: int(size)}
 		}
 	}
-	if err == io.EOF {
-		return cache, nil
-	}
-	return cache, err
+	return nil
 }
 
 // Read reads address of data for a given score
