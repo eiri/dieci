@@ -1,6 +1,7 @@
 package dieci
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -65,10 +66,14 @@ func TestIndex(t *testing.T) {
 	})
 
 	t.Run("load", func(t *testing.T) {
+		idx := NewIndex(name)
 		fileName := name + ".idx"
-		cache, err := loadCache(fileName)
+		f, err := os.Open(fileName)
 		assert.NoError(err)
-		assert.Len(cache, len(strings.Fields(words)))
+		defer f.Close()
+		err = idx.Load(f)
+		assert.NoError(err)
+		assert.Len(idx.cache, len(strings.Fields(words)))
 	})
 
 	t.Run("close", func(t *testing.T) {
