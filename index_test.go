@@ -17,19 +17,11 @@ func TestIndex(t *testing.T) {
 
 	words := "The quick brown fox jumps over the lazy dog"
 
-	t.Run("open", func(t *testing.T) {
-		idx := NewIndex(name)
-		err = idx.Open()
-		defer idx.Close()
+	t.Run("write", func(t *testing.T) {
+		f, err := os.Create(name + ".idx")
 		assert.NoError(err)
-		assert.Empty(idx.cache, "Cache should be empty")
-	})
-
-	t.Run("put", func(t *testing.T) {
-		idx := NewIndex(name)
-		err := idx.Open()
-		defer idx.Close()
-		assert.NoError(err)
+		defer f.Close()
+		idx := NewIndex(f)
 		for pos, word := range strings.Fields(words) {
 			data := []byte(word)
 			size := len(data)
@@ -44,10 +36,22 @@ func TestIndex(t *testing.T) {
 		}
 	})
 
-	t.Run("get", func(t *testing.T) {
-		idx := NewIndex(name)
-		err := idx.Open()
-		defer idx.Close()
+	t.Run("load", func(t *testing.T) {
+		f, err := os.Open(name + ".idx")
+		assert.NoError(err)
+		defer f.Close()
+		idx := NewIndex(f)
+		err = idx.Load()
+		assert.NoError(err)
+		assert.Len(idx.cache, len(strings.Fields(words)))
+	})
+
+	t.Run("read", func(t *testing.T) {
+		f, err := os.Open(name + ".idx")
+		assert.NoError(err)
+		defer f.Close()
+		idx := NewIndex(f)
+		err = idx.Load()
 		assert.NoError(err)
 		for pos, word := range strings.Fields(words) {
 			data := []byte(word)
@@ -65,29 +69,6 @@ func TestIndex(t *testing.T) {
 		assert.False(ok, "Should indicate that score doesn't exists")
 	})
 
-	t.Run("load", func(t *testing.T) {
-		idx := NewIndex(name)
-		fileName := name + ".idx"
-		f, err := os.Open(fileName)
-		assert.NoError(err)
-		defer f.Close()
-		err = idx.Load(f)
-		assert.NoError(err)
-		assert.Len(idx.cache, len(strings.Fields(words)))
-	})
-
-	t.Run("close", func(t *testing.T) {
-		idx := NewIndex(name)
-		err := idx.Open()
-		assert.NoError(err)
-		assert.NotEmpty(idx.cache)
-		err = idx.Close()
-		assert.NoError(err)
-		assert.Empty(idx.cache)
-		err = idx.Close()
-		assert.Error(err, "Should return error on attempt to close again")
-	})
-
 	// cleanup
 	err = removeDatalogFile(name)
 	assert.NoError(err)
@@ -96,50 +77,17 @@ func TestIndex(t *testing.T) {
 // BenchmarkIndexLoad for iterative improvement of open
 func BenchmarkIndexLoad(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		idx := NewIndex("testdata/words")
-		err := idx.Open()
+		b.StopTimer()
+		f, err := os.Open("testdata/words.idx")
 		if err != nil {
 			b.Fatal(err)
 		}
+		b.StartTimer()
+		idx := NewIndex(f)
+		err = idx.Load()
+		if err != nil {
+			b.Fatal(err)
+		}
+		f.Close()
 	}
-}
-
-// TestIndexRebuild to ensure we can rebuild an index from a datalog
-func TestIndexRebuild(t *testing.T) {
-	// prepare datalog
-	assert := require.New(t)
-	words := "Pack my box with five dozen liquor jugs"
-	name := randomName()
-	err := createDatalogFile(name)
-	assert.NoError(err)
-	// propagate datalog
-	dl := NewDatalog(name)
-	err = dl.Open()
-	assert.NoError(err)
-	pos := intSize
-	expectedCache := make(cache)
-	for _, word := range strings.Fields(words) {
-		data := []byte(word)
-		//score := MakeScore(data)
-		score, err := dl.Write(data)
-		assert.NoError(err)
-		size := len(data) + scoreSize
-		expectedCache[score] = Addr{pos: pos, size: size}
-		pos += size + intSize
-	}
-	dl.Close()
-	// create an empty index and trigger rebuild by opening it
-	idx := NewIndex(name)
-	err = idx.Open()
-	assert.NoError(err)
-	assert.Equal(expectedCache, idx.cache)
-	idx.Close()
-	assert.Empty(idx.cache)
-	// reopen index to ensure it persist
-	err = idx.Open()
-	assert.NoError(err)
-	assert.Equal(expectedCache, idx.cache)
-	// cleanup
-	err = removeDatalogFile(name)
-	assert.NoError(err)
 }

@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"os"
 )
 
 const (
@@ -17,10 +16,9 @@ const (
 
 // Indexer is the interface for Datalog's index
 type Indexer interface {
-	Open() error
+	Load() error
 	Read(score Score) (Addr, bool)
 	Write(score Score, a Addr) error
-	Close() error
 }
 
 // Addr is data position and size in datalog
@@ -34,42 +32,21 @@ type cache map[Score]Addr
 
 // Index represents an index of a datalog file
 type Index struct {
-	name  string
 	cache cache
-	rwc   *os.File
+	rw    io.ReadWriter
 }
 
 // NewIndex returns a new index structure with the given name
-func NewIndex(name string) *Index {
-	return &Index{name: name, cache: make(cache)}
-}
-
-// Open opens the named index
-func (idx *Index) Open() error {
-	fileName := fmt.Sprintf("%s.idx", idx.name)
-	if f, err := os.Open(fileName); err == nil {
-		err = idx.Load(f)
-		f.Close()
-		if err != nil {
-			return err
-		}
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		return err
-	}
-	idx.rwc = f
-	return nil
+func NewIndex(rw io.ReadWriter) *Index {
+	return &Index{cache: make(cache), rw: rw}
 }
 
 // Load cache from giver Reader
-func (idx *Index) Load(r io.Reader) error {
+func (idx *Index) Load() error {
 	idx.cache = make(cache)
 	for {
 		page := make([]byte, pageSize, pageSize)
-		n, err := r.Read(page)
+		n, err := idx.rw.Read(page)
 		if err != nil && err != io.EOF {
 			return err
 		}
@@ -111,16 +88,10 @@ func (idx *Index) Write(score Score, a Addr) error {
 	binary.BigEndian.PutUint32(buf[0:intSize], uint32(a.pos))
 	binary.BigEndian.PutUint32(buf[intSize:doubleIntSize], uint32(a.size))
 	copy(buf[doubleIntSize:bufSize], score[:])
-	_, err := idx.rwc.Write(buf)
+	_, err := idx.rw.Write(buf)
 	if err != nil {
 		return fmt.Errorf("Index write failed: %s", err)
 	}
 	idx.cache[score] = a
 	return nil
-}
-
-// Close closes the index and resets the cache
-func (idx *Index) Close() error {
-	idx.cache = make(cache)
-	return idx.rwc.Close()
 }
