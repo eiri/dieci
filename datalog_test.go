@@ -67,6 +67,25 @@ func TestDataLog(t *testing.T) {
 		}
 	})
 
+	t.Run("rebuild index", func(t *testing.T) {
+		os.Remove(fmt.Sprintf("%s.idx", name))
+		dl := NewDatalog(name)
+		err := dl.Open()
+		assert.NoError(err)
+		defer dl.Close()
+		stat, err := dl.rwc.Stat()
+		assert.NoError(err)
+		end := int(stat.Size())
+		assert.EqualValues(end, dl.cur, "Cursor should be at EOF")
+		for _, word := range strings.Fields(words) {
+			expectedData := []byte(word)
+			score := MakeScore(expectedData)
+			data, err := dl.Read(score)
+			assert.NoError(err)
+			assert.Equal(expectedData, data)
+		}
+	})
+
 	t.Run("close", func(t *testing.T) {
 		dl := NewDatalog(name)
 		err := dl.Open()
@@ -103,12 +122,11 @@ func BenchmarkRebuildIndex(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		// create an empty index and set it to datalog
 		idxName := randomName()
-		idx := NewIndex(idxName)
 		idxF, err := os.Create(idxName + ".idx")
 		if err != nil {
 			b.Fatal(err)
 		}
-		idx.rwc = idxF
+		idx := NewIndex(idxF)
 		dl.index = idx
 		// isolated test
 		b.ResetTimer()
@@ -120,7 +138,7 @@ func BenchmarkRebuildIndex(b *testing.B) {
 		if len(idx.cache) != 235886 {
 			b.Fatal("expected index cache to be fully propagated")
 		}
-		idx.Close()
+		idxF.Close()
 		os.Remove(idxName + ".idx")
 	}
 	dl.Close()
