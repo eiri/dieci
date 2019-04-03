@@ -1,6 +1,7 @@
 package dieci
 
 import (
+	"bytes"
 	"os"
 	"strings"
 	"testing"
@@ -16,12 +17,11 @@ func TestIndex(t *testing.T) {
 	assert.NoError(err)
 
 	words := "The quick brown fox jumps over the lazy dog"
+	var index []byte
 
 	t.Run("write", func(t *testing.T) {
-		f, err := os.Create(name + ".idx")
-		assert.NoError(err)
-		defer f.Close()
-		idx := NewIndex(f)
+		var idxRW bytes.Buffer
+		idx := NewIndex(&idxRW)
 		for pos, word := range strings.Fields(words) {
 			data := []byte(word)
 			size := len(data)
@@ -34,23 +34,25 @@ func TestIndex(t *testing.T) {
 			assert.NoError(err)
 			assert.Equal(expAddr, idx.cache[score], "Should ignore update")
 		}
+		index = make([]byte, idxRW.Len())
+		copy(index, idxRW.Bytes())
 	})
 
 	t.Run("load", func(t *testing.T) {
-		f, err := os.Open(name + ".idx")
-		assert.NoError(err)
-		defer f.Close()
-		idx := NewIndex(f)
+		tmp := make([]byte, len(index))
+		copy(tmp, index)
+		idxRW := bytes.NewBuffer(tmp)
+		idx := NewIndex(idxRW)
 		err = idx.Load()
 		assert.NoError(err)
 		assert.Len(idx.cache, len(strings.Fields(words)))
 	})
 
 	t.Run("read", func(t *testing.T) {
-		f, err := os.Open(name + ".idx")
-		assert.NoError(err)
-		defer f.Close()
-		idx := NewIndex(f)
+		tmp := make([]byte, len(index))
+		copy(tmp, index)
+		idxRW := bytes.NewBuffer(tmp)
+		idx := NewIndex(idxRW)
 		err = idx.Load()
 		assert.NoError(err)
 		for pos, word := range strings.Fields(words) {
