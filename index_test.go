@@ -30,10 +30,12 @@ func TestIndex(t *testing.T) {
 			expAddr := Addr{pos, size}
 			err := idx.Store(score, Addr{pos: pos, size: size})
 			assert.NoError(err)
-			assert.Equal(expAddr, idx.cache[score])
+			addr, _ := idx.cache.Load(score)
+			assert.Equal(expAddr, addr)
 			err = idx.Store(score, Addr{pos: 0, size: 0})
 			assert.NoError(err)
-			assert.Equal(expAddr, idx.cache[score], "Should ignore update")
+			addr, _ = idx.cache.Load(score)
+			assert.Equal(expAddr, addr, "Should ignore update")
 		}
 		index = make([]byte, idxRW.Len())
 		copy(index, idxRW.Bytes())
@@ -45,7 +47,7 @@ func TestIndex(t *testing.T) {
 		idxRW := bytes.NewBuffer(tmp)
 		idx, err := NewIndex(idxRW)
 		assert.NoError(err)
-		assert.Len(idx.cache, len(strings.Fields(words)))
+		assert.Equal(idx.Len(), len(strings.Fields(words)))
 	})
 
 	t.Run("load", func(t *testing.T) {

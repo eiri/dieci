@@ -138,7 +138,7 @@ func BenchmarkRebuildIndex(b *testing.B) {
 			b.Fatal(err)
 		}
 		b.StopTimer()
-		if len(idx.cache) != 235886 {
+		if idx.Len() != 235886 {
 			b.Fatal("expected index cache to be fully propagated")
 		}
 		idxF.Close()

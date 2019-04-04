@@ -54,7 +54,7 @@ func (d *Datalog) Open() error {
 	}
 	d.index = idx
 	d.indexRW = indexRW
-	if len(idx.cache) == 0 {
+	if idx.Len() == 0 {
 		err = d.RebuildIndex()
 	}
 	return err

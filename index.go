@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"sync"
 )
 
 const (
@@ -26,18 +27,17 @@ type Addr struct {
 	size int
 }
 
-// cache is in memory lookup store
-type cache map[Score]Addr
-
 // Index represents an index of a datalog file
 type Index struct {
-	cache cache
-	rw    io.ReadWriter
+	cache  *sync.Map
+	length int
+	rw     io.ReadWriter
 }
 
 // NewIndex returns a new index structure with the given name
 func NewIndex(rw io.ReadWriter) (*Index, error) {
-	cache := make(cache)
+	cache := new(sync.Map)
+	length := 0
 	for {
 		page := make([]byte, pageSize, pageSize)
 		n, err := rw.Read(page)
@@ -61,23 +61,26 @@ func NewIndex(rw io.ReadWriter) (*Index, error) {
 			pos := binary.BigEndian.Uint32(buf[0:intSize])
 			size := binary.BigEndian.Uint32(buf[intSize:doubleIntSize])
 			copy(score[:], buf[doubleIntSize:bufSize])
-			cache[score] = Addr{pos: int(pos), size: int(size)}
+			cache.Store(score, Addr{pos: int(pos), size: int(size)})
+			length++
 		}
 	}
-	return &Index{cache: cache, rw: rw}, nil
+	return &Index{cache: cache, length: length, rw: rw}, nil
 }
 
-// Load returns the address stored in the index for a score or nil if no
-// address is present.
+// Load returns the address stored in the index for a score
+// or an empty Addr if no address is present.
 // The ok result indicates if address was found in the index.
-func (idx *Index) Load(score Score) (a Addr, ok bool) {
-	a, ok = idx.cache[score]
-	return
+func (idx *Index) Load(score Score) (Addr, bool) {
+	if a, ok := idx.cache.Load(score); ok {
+		return a.(Addr), true
+	}
+	return Addr{}, false
 }
 
 // Store sets the address for a given score.
 func (idx *Index) Store(score Score, a Addr) error {
-	if _, ok := idx.cache[score]; ok {
+	if _, ok := idx.cache.Load(score); ok {
 		return nil
 	}
 	buf := make([]byte, bufSize, bufSize)
@@ -88,6 +91,18 @@ func (idx *Index) Store(score Score, a Addr) error {
 	if err != nil {
 		return fmt.Errorf("index write failed: %s", err)
 	}
-	idx.cache[score] = a
+	idx.cache.Store(score, a)
+	idx.length++
 	return nil
+}
+
+// Len returns the number of scores in the index.
+func (idx *Index) Len() int {
+	return idx.length
+	// length := 0
+	// idx.cache.Range(func(_, _ interface{}) bool {
+	// 	length++
+	// 	return true
+	// })
+	// return length
 }
