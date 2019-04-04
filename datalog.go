@@ -48,8 +48,7 @@ func (d *Datalog) Open() error {
 	if err != nil {
 		return err
 	}
-	idx := NewIndex(indexRW)
-	err = idx.Load()
+	idx, err := NewIndex(indexRW)
 	if err != nil {
 		return err
 	}

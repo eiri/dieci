@@ -126,7 +126,10 @@ func BenchmarkRebuildIndex(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		idx := NewIndex(idxF)
+		idx, err := NewIndex(idxF)
+		if err != nil {
+			b.Fatal(err)
+		}
 		dl.index = idx
 		// isolated test
 		b.ResetTimer()
