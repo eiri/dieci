@@ -16,8 +16,8 @@ const (
 
 // Indexer is the interface for Datalog's index
 type Indexer interface {
-	Read(score Score) (Addr, bool)
-	Write(score Score, a Addr) error
+	Load(score Score) (Addr, bool)
+	Store(score Score, a Addr) error
 }
 
 // Addr is data position and size in datalog
@@ -67,14 +67,16 @@ func NewIndex(rw io.ReadWriter) (*Index, error) {
 	return &Index{cache: cache, rw: rw}, nil
 }
 
-// Read reads address of data for a given score
-func (idx *Index) Read(score Score) (a Addr, ok bool) {
+// Load returns the address stored in the index for a score or nil if no
+// address is present.
+// The ok result indicates if address was found in the index.
+func (idx *Index) Load(score Score) (a Addr, ok bool) {
 	a, ok = idx.cache[score]
 	return
 }
 
-// Write writes given score into index file and adds it to the cache
-func (idx *Index) Write(score Score, a Addr) error {
+// Store sets the address for a given score.
+func (idx *Index) Store(score Score, a Addr) error {
 	if _, ok := idx.cache[score]; ok {
 		return nil
 	}
@@ -84,7 +86,7 @@ func (idx *Index) Write(score Score, a Addr) error {
 	copy(buf[doubleIntSize:bufSize], score[:])
 	_, err := idx.rw.Write(buf)
 	if err != nil {
-		return fmt.Errorf("Index write failed: %s", err)
+		return fmt.Errorf("index write failed: %s", err)
 	}
 	idx.cache[score] = a
 	return nil

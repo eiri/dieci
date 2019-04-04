@@ -19,7 +19,7 @@ func TestIndex(t *testing.T) {
 	words := "The quick brown fox jumps over the lazy dog"
 	var index []byte
 
-	t.Run("write", func(t *testing.T) {
+	t.Run("store", func(t *testing.T) {
 		idxRW := bytes.NewBuffer([]byte{})
 		idx, err := NewIndex(idxRW)
 		assert.NoError(err)
@@ -28,10 +28,10 @@ func TestIndex(t *testing.T) {
 			size := len(data)
 			score := MakeScore(data)
 			expAddr := Addr{pos, size}
-			err := idx.Write(score, Addr{pos: pos, size: size})
+			err := idx.Store(score, Addr{pos: pos, size: size})
 			assert.NoError(err)
 			assert.Equal(expAddr, idx.cache[score])
-			err = idx.Write(score, Addr{pos: 0, size: 0})
+			err = idx.Store(score, Addr{pos: 0, size: 0})
 			assert.NoError(err)
 			assert.Equal(expAddr, idx.cache[score], "Should ignore update")
 		}
@@ -48,7 +48,7 @@ func TestIndex(t *testing.T) {
 		assert.Len(idx.cache, len(strings.Fields(words)))
 	})
 
-	t.Run("read", func(t *testing.T) {
+	t.Run("load", func(t *testing.T) {
 		tmp := make([]byte, len(index))
 		copy(tmp, index)
 		idxRW := bytes.NewBuffer(tmp)
@@ -58,13 +58,13 @@ func TestIndex(t *testing.T) {
 			data := []byte(word)
 			size := len(data)
 			score := MakeScore(data)
-			a, ok := idx.Read(score)
+			a, ok := idx.Load(score)
 			assert.Equal(pos, a.pos, "Should return correct position")
 			assert.Equal(size, a.size, "Should return correct size")
 			assert.True(ok, "Should indicate that score exists")
 		}
 		score := MakeScore([]byte("missing"))
-		a, ok := idx.Read(score)
+		a, ok := idx.Load(score)
 		assert.Empty(a.pos, "Should return 0 position for missing score")
 		assert.Empty(a.size, "Should return 0 size for missing score")
 		assert.False(ok, "Should indicate that score doesn't exists")
