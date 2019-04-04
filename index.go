@@ -16,7 +16,6 @@ const (
 
 // Indexer is the interface for Datalog's index
 type Indexer interface {
-	Load() error
 	Read(score Score) (Addr, bool)
 	Write(score Score, a Addr) error
 }
@@ -37,18 +36,13 @@ type Index struct {
 }
 
 // NewIndex returns a new index structure with the given name
-func NewIndex(rw io.ReadWriter) *Index {
-	return &Index{cache: make(cache), rw: rw}
-}
-
-// Load cache from giver Reader
-func (idx *Index) Load() error {
-	idx.cache = make(cache)
+func NewIndex(rw io.ReadWriter) (*Index, error) {
+	cache := make(cache)
 	for {
 		page := make([]byte, pageSize, pageSize)
-		n, err := idx.rw.Read(page)
+		n, err := rw.Read(page)
 		if err != nil && err != io.EOF {
-			return err
+			return nil, err
 		}
 		if err == io.EOF {
 			break
@@ -59,7 +53,7 @@ func (idx *Index) Load() error {
 			buf := make([]byte, bufSize, bufSize)
 			_, err := br.Read(buf)
 			if err != nil && err != io.EOF {
-				return err
+				return nil, err
 			}
 			if err == io.EOF {
 				break
@@ -67,10 +61,10 @@ func (idx *Index) Load() error {
 			pos := binary.BigEndian.Uint32(buf[0:intSize])
 			size := binary.BigEndian.Uint32(buf[intSize:doubleIntSize])
 			copy(score[:], buf[doubleIntSize:bufSize])
-			idx.cache[score] = Addr{pos: int(pos), size: int(size)}
+			cache[score] = Addr{pos: int(pos), size: int(size)}
 		}
 	}
-	return nil
+	return &Index{cache: cache, rw: rw}, nil
 }
 
 // Read reads address of data for a given score

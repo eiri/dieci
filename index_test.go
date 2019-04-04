@@ -20,8 +20,9 @@ func TestIndex(t *testing.T) {
 	var index []byte
 
 	t.Run("write", func(t *testing.T) {
-		var idxRW bytes.Buffer
-		idx := NewIndex(&idxRW)
+		idxRW := bytes.NewBuffer([]byte{})
+		idx, err := NewIndex(idxRW)
+		assert.NoError(err)
 		for pos, word := range strings.Fields(words) {
 			data := []byte(word)
 			size := len(data)
@@ -38,12 +39,11 @@ func TestIndex(t *testing.T) {
 		copy(index, idxRW.Bytes())
 	})
 
-	t.Run("load", func(t *testing.T) {
+	t.Run("open", func(t *testing.T) {
 		tmp := make([]byte, len(index))
 		copy(tmp, index)
 		idxRW := bytes.NewBuffer(tmp)
-		idx := NewIndex(idxRW)
-		err = idx.Load()
+		idx, err := NewIndex(idxRW)
 		assert.NoError(err)
 		assert.Len(idx.cache, len(strings.Fields(words)))
 	})
@@ -52,8 +52,7 @@ func TestIndex(t *testing.T) {
 		tmp := make([]byte, len(index))
 		copy(tmp, index)
 		idxRW := bytes.NewBuffer(tmp)
-		idx := NewIndex(idxRW)
-		err = idx.Load()
+		idx, err := NewIndex(idxRW)
 		assert.NoError(err)
 		for pos, word := range strings.Fields(words) {
 			data := []byte(word)
@@ -77,7 +76,7 @@ func TestIndex(t *testing.T) {
 }
 
 // BenchmarkIndexLoad for iterative improvement of open
-func BenchmarkIndexLoad(b *testing.B) {
+func BenchmarkIndexOpen(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		b.StopTimer()
 		f, err := os.Open("testdata/words.idx")
@@ -85,8 +84,7 @@ func BenchmarkIndexLoad(b *testing.B) {
 			b.Fatal(err)
 		}
 		b.StartTimer()
-		idx := NewIndex(f)
-		err = idx.Load()
+		_, err = NewIndex(f)
 		if err != nil {
 			b.Fatal(err)
 		}
