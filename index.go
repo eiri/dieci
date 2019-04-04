@@ -1,17 +1,15 @@
 package dieci
 
 import (
-	"bytes"
+	"bufio"
 	"encoding/binary"
 	"fmt"
 	"io"
 )
 
 const (
-	intSize       = 4
-	doubleIntSize = 8
-	bufSize       = 24
-	pageSize      = 4080 // ~4K to match memory page
+	blockSize = 24   // 4 + 4 + 16
+	pageSize  = 4080 // 4096 - (4096 mod 24)
 )
 
 // Indexer is the interface for Datalog's index
@@ -38,31 +36,26 @@ type Index struct {
 // NewIndex returns a new index structure with the given name
 func NewIndex(rw io.ReadWriter) (*Index, error) {
 	cache := make(cache)
-	for {
-		page := make([]byte, pageSize, pageSize)
-		n, err := rw.Read(page)
-		if err != nil && err != io.EOF {
-			return nil, err
+	r := bufio.NewReaderSize(rw, pageSize)
+	scanner := bufio.NewScanner(r)
+	scanner.Split(func(data []byte, eof bool) (int, []byte, error) {
+		if eof && len(data) == 0 {
+			return 0, nil, io.EOF
 		}
-		if err == io.EOF {
-			break
-		}
-		br := bytes.NewReader(page[:n])
-		for {
-			var score Score
-			buf := make([]byte, bufSize, bufSize)
-			_, err := br.Read(buf)
-			if err != nil && err != io.EOF {
-				return nil, err
-			}
-			if err == io.EOF {
-				break
-			}
-			pos := binary.BigEndian.Uint32(buf[0:intSize])
-			size := binary.BigEndian.Uint32(buf[intSize:doubleIntSize])
-			copy(score[:], buf[doubleIntSize:bufSize])
-			cache[score] = Addr{pos: int(pos), size: int(size)}
-		}
+		return blockSize, data, nil
+	})
+	buf := make([]byte, blockSize)
+	scanner.Buffer(buf, blockSize)
+	for scanner.Scan() {
+		block := scanner.Bytes()
+		pos := binary.BigEndian.Uint32(block[0:])
+		size := binary.BigEndian.Uint32(block[4:])
+		var score Score
+		copy(score[:], block[8:])
+		cache[score] = Addr{pos: int(pos), size: int(size)}
+	}
+	if scanner.Err() != nil {
+		return nil, scanner.Err()
 	}
 	return &Index{cache: cache, rw: rw}, nil
 }
@@ -78,13 +71,13 @@ func (idx *Index) Write(score Score, a Addr) error {
 	if _, ok := idx.cache[score]; ok {
 		return nil
 	}
-	buf := make([]byte, bufSize, bufSize)
-	binary.BigEndian.PutUint32(buf[0:intSize], uint32(a.pos))
-	binary.BigEndian.PutUint32(buf[intSize:doubleIntSize], uint32(a.size))
-	copy(buf[doubleIntSize:bufSize], score[:])
+	buf := make([]byte, blockSize)
+	binary.BigEndian.PutUint32(buf[0:], uint32(a.pos))
+	binary.BigEndian.PutUint32(buf[4:], uint32(a.size))
+	copy(buf[8:], score[:])
 	_, err := idx.rw.Write(buf)
 	if err != nil {
-		return fmt.Errorf("Index write failed: %s", err)
+		return fmt.Errorf("index write failed: %s", err)
 	}
 	idx.cache[score] = a
 	return nil
