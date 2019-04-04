@@ -7,6 +7,10 @@ import (
 	"os"
 )
 
+const (
+	intSize = 4
+)
+
 // Datalogger is the interface for Datalog
 type Datalogger interface {
 	Open() error
