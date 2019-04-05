@@ -1,8 +1,6 @@
 package dieci
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
@@ -14,14 +12,14 @@ import (
 // TestDataLog for compliance to Datalogger
 func TestDataLog(t *testing.T) {
 	assert := require.New(t)
-	name := randomName()
-	err := createDatalogFile(name)
+	name := RandomName()
+	err := CreateDatalogFile(name)
 	assert.NoError(err)
 
 	words := "The quick brown fox jumps over the lazy dog"
 
 	t.Run("open", func(t *testing.T) {
-		missing := randomName()
+		missing := RandomName()
 		dl := NewDatalog(missing)
 		err := dl.Open()
 		assert.Error(err)
@@ -121,7 +119,7 @@ func BenchmarkRebuildIndex(b *testing.B) {
 	dl := &Datalog{name: name, cur: int(stat.Size()), rwc: f}
 	for n := 0; n < b.N; n++ {
 		// create an empty index and set it to datalog
-		idxName := randomName()
+		idxName := RandomName()
 		idxF, err := os.Create(idxName + ".idx")
 		if err != nil {
 			b.Fatal(err)
@@ -147,19 +145,7 @@ func BenchmarkRebuildIndex(b *testing.B) {
 	dl.Close()
 }
 
-func createDatalogFile(name string) error {
-	f, err := os.Create(fmt.Sprintf("%s.data", name))
-	defer f.Close()
-	return err
-}
-
 func removeDatalogFile(name string) error {
-	os.Remove(fmt.Sprintf("%s.idx", name))
-	return os.Remove(fmt.Sprintf("%s.data", name))
-}
-
-func randomName() string {
-	buf := make([]byte, 16)
-	rand.Read(buf)
-	return hex.EncodeToString(buf)
+	os.Remove(name + ".idx")
+	return os.Remove(name + ".data")
 }

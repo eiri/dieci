@@ -15,20 +15,12 @@ type Store struct {
 }
 
 // New creates a new empty storage
-func New() (s *Store, err error) {
-	buf := make([]byte, 16)
-	_, err = rand.Read(buf)
-	if err != nil {
-		return
+func New() (*Store, error) {
+	name := RandomName()
+	if err := CreateDatalogFile(name); err != nil {
+		return nil, err
 	}
-	storeName := hex.EncodeToString(buf)
-	dataFileName := fmt.Sprintf("%s.data", storeName)
-	f, err := os.OpenFile(dataFileName, os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		return
-	}
-	f.Close()
-	return Open(storeName)
+	return Open(name)
 }
 
 // Open opens provided storage
@@ -83,4 +75,18 @@ func (s *Store) Delete() error {
 		return err
 	}
 	return os.Remove(dlName)
+}
+
+// RandomName generator for new datastores
+func RandomName() string {
+	buf := make([]byte, 16)
+	rand.Read(buf)
+	return hex.EncodeToString(buf)
+}
+
+// CreateDatalogFile with assumption it doesn't exists, essentialy `touch`
+func CreateDatalogFile(name string) error {
+	f, err := os.OpenFile(name+".data", os.O_CREATE|os.O_EXCL, 0600)
+	defer f.Close()
+	return err
 }
