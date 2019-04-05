@@ -16,6 +16,7 @@ const (
 type Indexer interface {
 	Read(score Score) (Addr, bool)
 	Write(score Score, a Addr) error
+	Len() int
 }
 
 // Addr is data position and size in datalog
@@ -81,4 +82,9 @@ func (idx *Index) Write(score Score, a Addr) error {
 	}
 	idx.cache[score] = a
 	return nil
+}
+
+// Len returns current length of cache
+func (idx *Index) Len() int {
+	return len(idx.cache)
 }

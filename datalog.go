@@ -21,16 +21,19 @@ type Datalogger interface {
 
 // Datalog represents a datalog file
 type Datalog struct {
-	name    string
-	index   Indexer
-	indexRW *os.File
-	cur     int
-	rwc     *os.File
+	name  string
+	index Indexer
+	cur   int
+	rwc   *os.File
 }
 
 // NewDatalog returns a new datalog with the given name
-func NewDatalog(name string) *Datalog {
-	return &Datalog{name: name, cur: 0}
+func NewDatalog(name string, irw io.ReadWriter) (*Datalog, error) {
+	idx, err := NewIndex(irw)
+	if err != nil {
+		return &Datalog{}, err
+	}
+	return &Datalog{name: name, index: idx, cur: 0}, nil
 }
 
 // Open opens the named datalog
@@ -46,19 +49,7 @@ func (d *Datalog) Open() error {
 	}
 	d.rwc = rwc
 	d.cur = int(stat.Size())
-
-	fileName = fmt.Sprintf("%s.idx", d.name)
-	indexRW, err := os.OpenFile(fileName, os.O_CREATE|os.O_RDWR, 0600)
-	if err != nil {
-		return err
-	}
-	idx, err := NewIndex(indexRW)
-	if err != nil {
-		return err
-	}
-	d.index = idx
-	d.indexRW = indexRW
-	if len(idx.cache) == 0 {
+	if d.index.Len() == 0 {
 		err = d.RebuildIndex()
 	}
 	return err
@@ -133,7 +124,6 @@ func (d *Datalog) Write(data []byte) (Score, error) {
 
 // Close closes the datalog
 func (d *Datalog) Close() error {
-	d.indexRW.Close()
 	d.index = &Index{}
 	d.cur = 0
 	return d.rwc.Close()
