@@ -12,8 +12,8 @@ import (
 // TestIndex for compliance to Indexer
 func TestIndex(t *testing.T) {
 	assert := require.New(t)
-	name := randomName()
-	err := createDatalogFile(name)
+	name := RandomName()
+	err := CreateDatalogFile(name)
 	assert.NoError(err)
 
 	words := "The quick brown fox jumps over the lazy dog"
@@ -75,7 +75,7 @@ func TestIndex(t *testing.T) {
 	assert.NoError(err)
 }
 
-// BenchmarkIndexLoad for iterative improvement of open
+// BenchmarkIndexOpen for iterative improvement of open
 func BenchmarkIndexOpen(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		b.StopTimer()
