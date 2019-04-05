@@ -12,6 +12,7 @@ import (
 type Store struct {
 	name string
 	data Datalogger
+	irw  *os.File
 }
 
 // New creates a new empty storage
@@ -25,7 +26,14 @@ func New() (*Store, error) {
 
 // Open opens provided storage
 func Open(name string) (s *Store, err error) {
-	data := NewDatalog(name)
+	irw, err := os.OpenFile(name+".idx", os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return
+	}
+	data, err := NewDatalog(name, irw)
+	if err != nil {
+		return
+	}
 	err = data.Open()
 	if err != nil {
 		return
@@ -33,6 +41,7 @@ func Open(name string) (s *Store, err error) {
 	s = &Store{
 		name: name,
 		data: data,
+		irw:  irw,
 	}
 	return
 }
@@ -59,22 +68,16 @@ func (s *Store) Write(b []byte) (score Score, err error) {
 
 // Close provided storage
 func (s *Store) Close() error {
+	s.irw.Close()
 	return s.data.Close()
 }
 
 // Delete provided storage
 func (s *Store) Delete() error {
-	idxName := fmt.Sprintf("%s.idx", s.name)
-	dlName := fmt.Sprintf("%s.data", s.name)
-	err := s.data.Close()
-	if err != nil {
-		return err
-	}
-	err = os.Remove(idxName)
-	if err != nil {
-		return err
-	}
-	return os.Remove(dlName)
+	s.irw.Close()
+	os.Remove(s.name + ".idx")
+	s.data.Close()
+	return os.Remove(s.name + ".data")
 }
 
 // RandomName generator for new datastores

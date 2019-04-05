@@ -1,7 +1,7 @@
 package dieci
 
 import (
-	"fmt"
+	"bytes"
 	"os"
 	"strings"
 	"testing"
@@ -17,13 +17,17 @@ func TestDataLog(t *testing.T) {
 	assert.NoError(err)
 
 	words := "The quick brown fox jumps over the lazy dog"
+	var index []byte
 
 	t.Run("open", func(t *testing.T) {
 		missing := RandomName()
-		dl := NewDatalog(missing)
-		err := dl.Open()
+		irw := bytes.NewBuffer([]byte{})
+		dl, err := NewDatalog(missing, irw)
+		assert.NoError(err)
+		err = dl.Open()
 		assert.Error(err)
-		dl = NewDatalog(name)
+		dl, err = NewDatalog(name, irw)
+		assert.NoError(err)
 		err = dl.Open()
 		assert.NoError(err)
 		defer dl.Close()
@@ -31,8 +35,10 @@ func TestDataLog(t *testing.T) {
 	})
 
 	t.Run("write", func(t *testing.T) {
-		dl := NewDatalog(name)
-		err := dl.Open()
+		irw := bytes.NewBuffer([]byte{})
+		dl, err := NewDatalog(name, irw)
+		assert.NoError(err)
+		err = dl.Open()
 		assert.NoError(err)
 		defer dl.Close()
 		prevCur := dl.cur
@@ -45,11 +51,17 @@ func TestDataLog(t *testing.T) {
 			assert.True(dl.cur > prevCur, "Cursor should move")
 			prevCur = dl.cur
 		}
+		index = make([]byte, irw.Len())
+		copy(index, irw.Bytes())
 	})
 
 	t.Run("read", func(t *testing.T) {
-		dl := NewDatalog(name)
-		err := dl.Open()
+		tmp := make([]byte, len(index))
+		copy(tmp, index)
+		irw := bytes.NewBuffer(tmp)
+		dl, err := NewDatalog(name, irw)
+		assert.NoError(err)
+		err = dl.Open()
 		assert.NoError(err)
 		defer dl.Close()
 		stat, err := dl.rwc.Stat()
@@ -66,9 +78,10 @@ func TestDataLog(t *testing.T) {
 	})
 
 	t.Run("rebuild index", func(t *testing.T) {
-		os.Remove(fmt.Sprintf("%s.idx", name))
-		dl := NewDatalog(name)
-		err := dl.Open()
+		irw := bytes.NewBuffer([]byte{})
+		dl, err := NewDatalog(name, irw)
+		assert.NoError(err)
+		err = dl.Open()
 		assert.NoError(err)
 		defer dl.Close()
 		stat, err := dl.rwc.Stat()
@@ -85,8 +98,10 @@ func TestDataLog(t *testing.T) {
 	})
 
 	t.Run("close", func(t *testing.T) {
-		dl := NewDatalog(name)
-		err := dl.Open()
+		irw := bytes.NewBuffer([]byte{})
+		dl, err := NewDatalog(name, irw)
+		assert.NoError(err)
+		err = dl.Open()
 		assert.NoError(err)
 		defer dl.Close()
 		stat, err := dl.rwc.Stat()
@@ -146,6 +161,5 @@ func BenchmarkRebuildIndex(b *testing.B) {
 }
 
 func removeDatalogFile(name string) error {
-	os.Remove(name + ".idx")
 	return os.Remove(name + ".data")
 }
