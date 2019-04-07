@@ -12,13 +12,6 @@ const (
 	pageSize  = 4080 // 4096 - (4096 mod 24)
 )
 
-// Indexer is the interface for Datalog's index
-type Indexer interface {
-	Read(score Score) (Addr, bool)
-	Write(score Score, a Addr) error
-	Len() int
-}
-
 // Addr is data position and size in datalog
 type Addr struct {
 	pos  int

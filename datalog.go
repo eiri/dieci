@@ -11,18 +11,10 @@ const (
 	intSize = 4
 )
 
-// Datalogger is the interface for Datalog
-type Datalogger interface {
-	Open() error
-	Read(score Score) (data []byte, err error)
-	Write(data []byte) (score Score, err error)
-	Close() error
-}
-
 // Datalog represents a datalog file
 type Datalog struct {
 	name  string
-	index Indexer
+	index *Index
 	cur   int
 	rwc   *os.File
 }
