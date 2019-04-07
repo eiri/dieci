@@ -11,7 +11,7 @@ import (
 // Store represents a data store.
 type Store struct {
 	name string
-	data Datalogger
+	data *Datalog
 	irw  *os.File
 }
 
