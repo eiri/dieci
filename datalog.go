@@ -95,23 +95,29 @@ func (d *Datalog) Write(data []byte) (Score, error) {
 	if _, ok := d.index.Read(score); ok {
 		return score, nil
 	}
-	size := len(data) + scoreSize
-	buf := make([]byte, intSize+size)
-	binary.BigEndian.PutUint32(buf, uint32(size))
-	copy(buf[intSize:], score[:])
-	copy(buf[intSize+scoreSize:], data)
+	buf := d.Encode(score, data)
 	n, err := d.rwc.Write(buf)
 	if err != nil {
 		return Score{}, err
 	}
 	pos := int(d.cur) + intSize
-	size = n - intSize
+	size := n - intSize
 	d.cur += n
 	err = d.index.Write(score, Addr{pos: pos, size: size})
 	if err != nil {
 		return Score{}, err
 	}
 	return score, nil
+}
+
+// Encode data and its score into slice of bytes suitable to write on disk
+func (d *Datalog) Encode(score Score, data []byte) []byte {
+	size := scoreSize + len(data)
+	buf := make([]byte, intSize+size)
+	binary.BigEndian.PutUint32(buf, uint32(size))
+	copy(buf[intSize:], score[:])
+	copy(buf[intSize+scoreSize:], data)
+	return buf
 }
 
 // Close closes the datalog

@@ -30,6 +30,7 @@ type Index struct {
 // NewIndex returns a new index structure with the given name
 func NewIndex(rw io.ReadWriter) (*Index, error) {
 	cache := make(cache)
+	idx := &Index{cache: cache, rw: rw}
 	r := bufio.NewReaderSize(rw, pageSize)
 	scanner := bufio.NewScanner(r)
 	scanner.Split(func(data []byte, eof bool) (int, []byte, error) {
@@ -42,16 +43,13 @@ func NewIndex(rw io.ReadWriter) (*Index, error) {
 	scanner.Buffer(buf, blockSize)
 	for scanner.Scan() {
 		block := scanner.Bytes()
-		pos := binary.BigEndian.Uint32(block[0:])
-		size := binary.BigEndian.Uint32(block[4:])
-		var score Score
-		copy(score[:], block[8:])
-		cache[score] = Addr{pos: int(pos), size: int(size)}
+		score, addr := idx.Decode(block)
+		cache[score] = addr
 	}
 	if scanner.Err() != nil {
 		return nil, scanner.Err()
 	}
-	return &Index{cache: cache, rw: rw}, nil
+	return idx, nil
 }
 
 // Read reads address of data for a given score
@@ -61,20 +59,35 @@ func (idx *Index) Read(score Score) (a Addr, ok bool) {
 }
 
 // Write writes given score into index file and adds it to the cache
-func (idx *Index) Write(score Score, a Addr) error {
+func (idx *Index) Write(score Score, addr Addr) error {
 	if _, ok := idx.cache[score]; ok {
 		return nil
 	}
-	buf := make([]byte, blockSize)
-	binary.BigEndian.PutUint32(buf[0:], uint32(a.pos))
-	binary.BigEndian.PutUint32(buf[4:], uint32(a.size))
-	copy(buf[8:], score[:])
-	_, err := idx.rw.Write(buf)
-	if err != nil {
+	idx.cache[score] = addr
+	buf := idx.Encode(score, addr)
+	if _, err := idx.rw.Write(buf); err != nil {
 		return fmt.Errorf("index write failed: %s", err)
 	}
-	idx.cache[score] = a
 	return nil
+}
+
+// Decode serialized bytes to score and addess
+func (idx *Index) Decode(block []byte) (Score, Addr) {
+	pos := binary.BigEndian.Uint32(block[0:])
+	size := binary.BigEndian.Uint32(block[4:])
+	var score Score
+	copy(score[:], block[8:])
+	addr := Addr{pos: int(pos), size: int(size)}
+	return score, addr
+}
+
+// Encode serialize map entry into slice of bytes suitable to write on disk
+func (idx *Index) Encode(score Score, addr Addr) []byte {
+	buf := make([]byte, blockSize)
+	binary.BigEndian.PutUint32(buf[0:], uint32(addr.pos))
+	binary.BigEndian.PutUint32(buf[4:], uint32(addr.size))
+	copy(buf[8:], score[:])
+	return buf
 }
 
 // Len returns current length of cache
