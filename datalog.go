@@ -57,23 +57,21 @@ func (d *Datalog) Open() error {
 // RebuildIndex by scaning datalog and writing cache again
 func (d *Datalog) RebuildIndex() error {
 	var err error
-	d.reader.Seek(0, 0)
-	pos := intSize
+	offset := 0
 	buf := make([]byte, intSize+scoreSize)
 	for {
-		if _, err = d.reader.Read(buf); err == io.EOF {
+		if _, err = d.reader.ReadAt(buf, int64(offset)); err == io.EOF {
 			err = nil
 			break
 		}
 		size := int(binary.BigEndian.Uint32(buf[:intSize]))
 		var score Score
 		copy(score[:], buf[intSize:])
-		err = d.index.Write(score, Addr{pos: pos, size: size})
+		err = d.index.Write(score, Addr{pos: offset + intSize, size: size})
 		if err != nil {
 			break
 		}
-		pos += size + intSize
-		d.reader.Seek(int64(size-scoreSize), 1)
+		offset += intSize + size
 	}
 	return err
 }
