@@ -64,7 +64,7 @@ func TestDataLog(t *testing.T) {
 		err = dl.Open()
 		assert.NoError(err)
 		defer dl.Close()
-		stat, err := dl.rwc.Stat()
+		stat, err := dl.writer.Stat()
 		assert.NoError(err)
 		end := int(stat.Size())
 		assert.EqualValues(end, dl.cur, "Cursor should be at EOF")
@@ -84,7 +84,7 @@ func TestDataLog(t *testing.T) {
 		err = dl.Open()
 		assert.NoError(err)
 		defer dl.Close()
-		stat, err := dl.rwc.Stat()
+		stat, err := dl.writer.Stat()
 		assert.NoError(err)
 		end := int(stat.Size())
 		assert.EqualValues(end, dl.cur, "Cursor should be at EOF")
@@ -104,7 +104,7 @@ func TestDataLog(t *testing.T) {
 		err = dl.Open()
 		assert.NoError(err)
 		defer dl.Close()
-		stat, err := dl.rwc.Stat()
+		stat, err := dl.writer.Stat()
 		assert.NoError(err)
 		end := int(stat.Size())
 		assert.Equal(end, dl.cur, "Cursor should be at EOF")
@@ -123,15 +123,15 @@ func TestDataLog(t *testing.T) {
 func BenchmarkRebuildIndex(b *testing.B) {
 	// open data file
 	name := "testdata/words"
-	f, err := os.Open(name + ".data")
+	reader, err := os.Open(name + ".data")
 	if err != nil {
 		b.Fatal(err)
 	}
-	stat, err := f.Stat()
+	stat, err := reader.Stat()
 	if err != nil {
 		b.Fatal(err)
 	}
-	dl := &Datalog{name: name, cur: int(stat.Size()), rwc: f}
+	dl := &Datalog{name: name, cur: int(stat.Size()), reader: reader}
 	for n := 0; n < b.N; n++ {
 		// create an empty index and set it to datalog
 		idxName := RandomName()

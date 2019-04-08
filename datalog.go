@@ -13,10 +13,11 @@ const (
 
 // Datalog represents a datalog file
 type Datalog struct {
-	name  string
-	index *Index
-	cur   int
-	rwc   *os.File
+	name   string
+	index  *Index
+	cur    int
+	reader *os.File
+	writer *os.File
 }
 
 // NewDatalog returns a new datalog with the given name
@@ -31,16 +32,22 @@ func NewDatalog(name string, irw io.ReadWriter) (*Datalog, error) {
 // Open opens the named datalog
 func (d *Datalog) Open() error {
 	fileName := fmt.Sprintf("%s.data", d.name)
-	rwc, err := os.OpenFile(fileName, os.O_APPEND|os.O_RDWR, 0600)
+	writer, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
-	stat, err := rwc.Stat()
+	stat, err := writer.Stat()
 	if err != nil {
 		return err
 	}
-	d.rwc = rwc
+	d.writer = writer
 	d.cur = int(stat.Size())
+	//
+	reader, err := os.OpenFile(fileName, os.O_RDONLY, 0600)
+	if err != nil {
+		return err
+	}
+	d.reader = reader
 	if d.index.Len() == 0 {
 		err = d.RebuildIndex()
 	}
@@ -50,11 +57,11 @@ func (d *Datalog) Open() error {
 // RebuildIndex by scaning datalog and writing cache again
 func (d *Datalog) RebuildIndex() error {
 	var err error
-	d.rwc.Seek(0, 0)
+	d.reader.Seek(0, 0)
 	pos := intSize
 	buf := make([]byte, intSize+scoreSize)
 	for {
-		if _, err = d.rwc.Read(buf); err == io.EOF {
+		if _, err = d.reader.Read(buf); err == io.EOF {
 			err = nil
 			break
 		}
@@ -66,7 +73,7 @@ func (d *Datalog) RebuildIndex() error {
 			break
 		}
 		pos += size + intSize
-		d.rwc.Seek(int64(size-scoreSize), 1)
+		d.reader.Seek(int64(size-scoreSize), 1)
 	}
 	return err
 }
@@ -79,7 +86,7 @@ func (d *Datalog) Read(score Score) ([]byte, error) {
 		return nil, err
 	}
 	data := make([]byte, a.size-scoreSize)
-	n, err := d.rwc.ReadAt(data, int64(a.pos+scoreSize))
+	n, err := d.reader.ReadAt(data, int64(a.pos+scoreSize))
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +103,7 @@ func (d *Datalog) Write(data []byte) (Score, error) {
 		return score, nil
 	}
 	buf := d.Encode(score, data)
-	n, err := d.rwc.Write(buf)
+	n, err := d.writer.Write(buf)
 	if err != nil {
 		return Score{}, err
 	}
@@ -124,5 +131,6 @@ func (d *Datalog) Encode(score Score, data []byte) []byte {
 func (d *Datalog) Close() error {
 	d.index = &Index{}
 	d.cur = 0
-	return d.rwc.Close()
+	d.reader.Close()
+	return d.writer.Close()
 }
