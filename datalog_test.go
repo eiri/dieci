@@ -31,7 +31,6 @@ func TestDataLog(t *testing.T) {
 		err = dl.Open()
 		assert.NoError(err)
 		defer dl.Close()
-		assert.Equal(0, dl.cur, "Cursor should be on 0")
 	})
 
 	t.Run("write", func(t *testing.T) {
@@ -41,15 +40,12 @@ func TestDataLog(t *testing.T) {
 		err = dl.Open()
 		assert.NoError(err)
 		defer dl.Close()
-		prevCur := dl.cur
 		for _, word := range strings.Fields(words) {
 			data := []byte(word)
 			expectedScore := MakeScore(data)
 			score, err := dl.Write(data)
 			assert.NoError(err)
 			assert.Equal(expectedScore, score)
-			assert.True(dl.cur > prevCur, "Cursor should move")
-			prevCur = dl.cur
 		}
 		index = make([]byte, irw.Len())
 		copy(index, irw.Bytes())
@@ -64,10 +60,6 @@ func TestDataLog(t *testing.T) {
 		err = dl.Open()
 		assert.NoError(err)
 		defer dl.Close()
-		stat, err := dl.writer.Stat()
-		assert.NoError(err)
-		end := int(stat.Size())
-		assert.EqualValues(end, dl.cur, "Cursor should be at EOF")
 		for _, word := range strings.Fields(words) {
 			expectedData := []byte(word)
 			score := MakeScore(expectedData)
@@ -84,10 +76,6 @@ func TestDataLog(t *testing.T) {
 		err = dl.Open()
 		assert.NoError(err)
 		defer dl.Close()
-		stat, err := dl.writer.Stat()
-		assert.NoError(err)
-		end := int(stat.Size())
-		assert.EqualValues(end, dl.cur, "Cursor should be at EOF")
 		for _, word := range strings.Fields(words) {
 			expectedData := []byte(word)
 			score := MakeScore(expectedData)
@@ -103,14 +91,8 @@ func TestDataLog(t *testing.T) {
 		assert.NoError(err)
 		err = dl.Open()
 		assert.NoError(err)
-		defer dl.Close()
-		stat, err := dl.writer.Stat()
-		assert.NoError(err)
-		end := int(stat.Size())
-		assert.Equal(end, dl.cur, "Cursor should be at EOF")
 		err = dl.Close()
 		assert.NoError(err)
-		assert.Equal(0, dl.cur, "Cursor should reset")
 		err = dl.Close()
 		assert.Error(err, "Should return error on attempt to close again")
 	})
@@ -127,11 +109,7 @@ func BenchmarkRebuildIndex(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	stat, err := reader.Stat()
-	if err != nil {
-		b.Fatal(err)
-	}
-	dl := &Datalog{name: name, cur: int(stat.Size()), reader: reader}
+	dl := &Datalog{name: name, reader: reader}
 	for n := 0; n < b.N; n++ {
 		// create an empty index and set it to datalog
 		idxName := RandomName()
