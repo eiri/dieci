@@ -15,7 +15,6 @@ const (
 type Datalog struct {
 	name   string
 	index  *Index
-	cur    int
 	reader *os.File
 	writer *os.File
 }
@@ -26,7 +25,7 @@ func NewDatalog(name string, irw io.ReadWriter) (*Datalog, error) {
 	if err != nil {
 		return &Datalog{}, err
 	}
-	return &Datalog{name: name, index: idx, cur: 0}, nil
+	return &Datalog{name: name, index: idx}, nil
 }
 
 // Open opens the named datalog
@@ -36,12 +35,7 @@ func (d *Datalog) Open() error {
 	if err != nil {
 		return err
 	}
-	stat, err := writer.Stat()
-	if err != nil {
-		return err
-	}
 	d.writer = writer
-	d.cur = int(stat.Size())
 	//
 	reader, err := os.OpenFile(fileName, os.O_RDONLY, 0600)
 	if err != nil {
@@ -105,9 +99,8 @@ func (d *Datalog) Write(data []byte) (Score, error) {
 	if err != nil {
 		return Score{}, err
 	}
-	pos := int(d.cur) + intSize
+	pos := d.index.Cur() + intSize
 	size := n - intSize
-	d.cur += n
 	err = d.index.Write(score, Addr{pos: pos, size: size})
 	if err != nil {
 		return Score{}, err
@@ -128,7 +121,6 @@ func (d *Datalog) Encode(score Score, data []byte) []byte {
 // Close closes the datalog
 func (d *Datalog) Close() error {
 	d.index = &Index{}
-	d.cur = 0
 	d.reader.Close()
 	return d.writer.Close()
 }

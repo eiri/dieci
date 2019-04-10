@@ -24,6 +24,7 @@ type cache map[Score]Addr
 // Index represents an index of a datalog file
 type Index struct {
 	cache cache
+	cur   int
 	rw    io.ReadWriter
 }
 
@@ -45,6 +46,7 @@ func NewIndex(rw io.ReadWriter) (*Index, error) {
 		block := scanner.Bytes()
 		score, addr := idx.Decode(block)
 		cache[score] = addr
+		idx.cur = addr.pos + addr.size
 	}
 	if scanner.Err() != nil {
 		return nil, scanner.Err()
@@ -64,6 +66,7 @@ func (idx *Index) Write(score Score, addr Addr) error {
 		return nil
 	}
 	idx.cache[score] = addr
+	idx.cur = addr.pos + addr.size
 	buf := idx.Encode(score, addr)
 	if _, err := idx.rw.Write(buf); err != nil {
 		return fmt.Errorf("index write failed: %s", err)
@@ -93,4 +96,9 @@ func (idx *Index) Encode(score Score, addr Addr) []byte {
 // Len returns current length of cache
 func (idx *Index) Len() int {
 	return len(idx.cache)
+}
+
+// Cur returns cursor (aa EOF) position according to the index
+func (idx *Index) Cur() int {
+	return idx.cur
 }

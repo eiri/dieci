@@ -23,7 +23,9 @@ func TestIndex(t *testing.T) {
 		idxRW := bytes.NewBuffer([]byte{})
 		idx, err := NewIndex(idxRW)
 		assert.NoError(err)
-		for pos, word := range strings.Fields(words) {
+		assert.Equal(0, idx.Cur())
+		pos := 0
+		for _, word := range strings.Fields(words) {
 			data := []byte(word)
 			size := len(data)
 			score := MakeScore(data)
@@ -31,6 +33,7 @@ func TestIndex(t *testing.T) {
 			err := idx.Write(score, Addr{pos: pos, size: size})
 			assert.NoError(err)
 			assert.Equal(expAddr, idx.cache[score])
+			pos += size
 			err = idx.Write(score, Addr{pos: 0, size: 0})
 			assert.NoError(err)
 			assert.Equal(expAddr, idx.cache[score], "Should ignore update")
@@ -46,6 +49,7 @@ func TestIndex(t *testing.T) {
 		idx, err := NewIndex(idxRW)
 		assert.NoError(err)
 		assert.Len(idx.cache, len(strings.Fields(words)))
+		assert.Equal(35, idx.Cur())
 	})
 
 	t.Run("read", func(t *testing.T) {
@@ -54,7 +58,9 @@ func TestIndex(t *testing.T) {
 		idxRW := bytes.NewBuffer(tmp)
 		idx, err := NewIndex(idxRW)
 		assert.NoError(err)
-		for pos, word := range strings.Fields(words) {
+		assert.Equal(35, idx.Cur())
+		pos := 0
+		for _, word := range strings.Fields(words) {
 			data := []byte(word)
 			size := len(data)
 			score := MakeScore(data)
@@ -62,6 +68,7 @@ func TestIndex(t *testing.T) {
 			assert.Equal(pos, a.pos, "Should return correct position")
 			assert.Equal(size, a.size, "Should return correct size")
 			assert.True(ok, "Should indicate that score exists")
+			pos += size
 		}
 		score := MakeScore([]byte("missing"))
 		a, ok := idx.Read(score)
