@@ -12,34 +12,29 @@ import (
 // TestDataLog for compliance to Datalogger
 func TestDataLog(t *testing.T) {
 	assert := require.New(t)
-	name := RandomName()
-	err := CreateDatalogFile(name)
-	assert.NoError(err)
 
 	words := "The quick brown fox jumps over the lazy dog"
+	var datalog []byte
 	var index []byte
 
 	t.Run("open", func(t *testing.T) {
-		missing := RandomName()
+		dw := bytes.NewBuffer([]byte{})
+		dr := bytes.NewReader([]byte{})
 		irw := bytes.NewBuffer([]byte{})
-		dl, err := NewDatalog(missing, irw)
+
+		dl := NewDatalog(dr, dw)
+		err := dl.Open(irw)
 		assert.NoError(err)
-		err = dl.Open()
-		assert.Error(err)
-		dl, err = NewDatalog(name, irw)
-		assert.NoError(err)
-		err = dl.Open()
-		assert.NoError(err)
-		defer dl.Close()
 	})
 
 	t.Run("write", func(t *testing.T) {
+		dw := bytes.NewBuffer([]byte{})
+		dr := bytes.NewReader([]byte{})
 		irw := bytes.NewBuffer([]byte{})
-		dl, err := NewDatalog(name, irw)
+
+		dl := NewDatalog(dr, dw)
+		err := dl.Open(irw)
 		assert.NoError(err)
-		err = dl.Open()
-		assert.NoError(err)
-		defer dl.Close()
 		for _, word := range strings.Fields(words) {
 			data := []byte(word)
 			expectedScore := MakeScore(data)
@@ -47,19 +42,25 @@ func TestDataLog(t *testing.T) {
 			assert.NoError(err)
 			assert.Equal(expectedScore, score)
 		}
+
+		datalog = make([]byte, dw.Len())
+		copy(datalog, dw.Bytes())
 		index = make([]byte, irw.Len())
 		copy(index, irw.Bytes())
 	})
 
 	t.Run("read", func(t *testing.T) {
-		tmp := make([]byte, len(index))
+		tmp := make([]byte, len(datalog))
+		copy(tmp, datalog)
+		dw := bytes.NewBuffer([]byte{})
+		dr := bytes.NewReader(tmp)
+		tmp = make([]byte, len(index))
 		copy(tmp, index)
 		irw := bytes.NewBuffer(tmp)
-		dl, err := NewDatalog(name, irw)
+
+		dl := NewDatalog(dr, dw)
+		err := dl.Open(irw)
 		assert.NoError(err)
-		err = dl.Open()
-		assert.NoError(err)
-		defer dl.Close()
 		for _, word := range strings.Fields(words) {
 			expectedData := []byte(word)
 			score := MakeScore(expectedData)
@@ -70,12 +71,17 @@ func TestDataLog(t *testing.T) {
 	})
 
 	t.Run("rebuild index", func(t *testing.T) {
-		irw := bytes.NewBuffer([]byte{})
-		dl, err := NewDatalog(name, irw)
+		tmp := make([]byte, len(datalog))
+		copy(tmp, datalog)
+		dw := bytes.NewBuffer([]byte{})
+		dr := bytes.NewReader(tmp)
+		tmp = make([]byte, len(index))
+		copy(tmp, index)
+		irw := bytes.NewBuffer(tmp)
+
+		dl := NewDatalog(dr, dw)
+		err := dl.Open(irw)
 		assert.NoError(err)
-		err = dl.Open()
-		assert.NoError(err)
-		defer dl.Close()
 		for _, word := range strings.Fields(words) {
 			expectedData := []byte(word)
 			score := MakeScore(expectedData)
@@ -84,21 +90,6 @@ func TestDataLog(t *testing.T) {
 			assert.Equal(expectedData, data)
 		}
 	})
-
-	t.Run("close", func(t *testing.T) {
-		irw := bytes.NewBuffer([]byte{})
-		dl, err := NewDatalog(name, irw)
-		assert.NoError(err)
-		err = dl.Open()
-		assert.NoError(err)
-		err = dl.Close()
-		assert.NoError(err)
-		err = dl.Close()
-		assert.Error(err, "Should return error on attempt to close again")
-	})
-
-	err = removeDatalogFile(name)
-	assert.NoError(err)
 }
 
 // BenchmarkRebuildIndex isolated
@@ -109,7 +100,7 @@ func BenchmarkRebuildIndex(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	dl := &Datalog{name: name, reader: reader}
+	dl := &Datalog{reader: reader}
 	for n := 0; n < b.N; n++ {
 		// create an empty index and set it to datalog
 		idxName := RandomName()
@@ -135,7 +126,7 @@ func BenchmarkRebuildIndex(b *testing.B) {
 		idxF.Close()
 		os.Remove(idxName + ".idx")
 	}
-	dl.Close()
+	reader.Close()
 }
 
 func removeDatalogFile(name string) error {

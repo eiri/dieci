@@ -12,9 +12,6 @@ import (
 // TestIndex for compliance to Indexer
 func TestIndex(t *testing.T) {
 	assert := require.New(t)
-	name := RandomName()
-	err := CreateDatalogFile(name)
-	assert.NoError(err)
 
 	words := "The quick brown fox jumps over the lazy dog"
 	var index []byte
@@ -76,10 +73,6 @@ func TestIndex(t *testing.T) {
 		assert.Empty(a.size, "Should return 0 size for missing score")
 		assert.False(ok, "Should indicate that score doesn't exists")
 	})
-
-	// cleanup
-	err = removeDatalogFile(name)
-	assert.NoError(err)
 }
 
 // BenchmarkIndexOpen for iterative improvement of open
