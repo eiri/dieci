@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"os"
 )
 
 const (
@@ -13,35 +12,23 @@ const (
 
 // Datalog represents a datalog file
 type Datalog struct {
-	name   string
 	index  *Index
-	reader *os.File
-	writer *os.File
+	reader io.ReaderAt
+	writer io.Writer
 }
 
 // NewDatalog returns a new datalog with the given name
-func NewDatalog(name string, irw io.ReadWriter) (*Datalog, error) {
-	idx, err := NewIndex(irw)
-	if err != nil {
-		return &Datalog{}, err
-	}
-	return &Datalog{name: name, index: idx}, nil
+func NewDatalog(r io.ReaderAt, w io.Writer) *Datalog {
+	return &Datalog{reader: r, writer: w}
 }
 
 // Open opens the named datalog
-func (d *Datalog) Open() error {
-	fileName := fmt.Sprintf("%s.data", d.name)
-	writer, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0600)
+func (d *Datalog) Open(irw io.ReadWriter) error {
+	idx, err := NewIndex(irw)
 	if err != nil {
 		return err
 	}
-	d.writer = writer
-	//
-	reader, err := os.OpenFile(fileName, os.O_RDONLY, 0600)
-	if err != nil {
-		return err
-	}
-	d.reader = reader
+	d.index = idx
 	if d.index.Len() == 0 {
 		err = d.RebuildIndex()
 	}
@@ -116,11 +103,4 @@ func (d *Datalog) Encode(score Score, data []byte) []byte {
 	copy(buf[intSize:], score[:])
 	copy(buf[intSize+scoreSize:], data)
 	return buf
-}
-
-// Close closes the datalog
-func (d *Datalog) Close() error {
-	d.index = &Index{}
-	d.reader.Close()
-	return d.writer.Close()
 }

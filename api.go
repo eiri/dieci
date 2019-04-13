@@ -12,6 +12,8 @@ import (
 type Store struct {
 	name string
 	data *Datalog
+	dr   *os.File
+	dw   *os.File
 	irw  *os.File
 }
 
@@ -26,21 +28,28 @@ func New() (*Store, error) {
 
 // Open opens provided storage
 func Open(name string) (s *Store, err error) {
+	dw, err := os.OpenFile(name+".data", os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		return
+	}
+	dr, err := os.OpenFile(name+".data", os.O_RDONLY, 0600)
+	if err != nil {
+		return
+	}
+	data := NewDatalog(dr, dw)
 	irw, err := os.OpenFile(name+".idx", os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return
 	}
-	data, err := NewDatalog(name, irw)
-	if err != nil {
-		return
-	}
-	err = data.Open()
+	err = data.Open(irw)
 	if err != nil {
 		return
 	}
 	s = &Store{
 		name: name,
 		data: data,
+		dr:   dr,
+		dw:   dw,
 		irw:  irw,
 	}
 	return
@@ -68,15 +77,23 @@ func (s *Store) Write(b []byte) (score Score, err error) {
 
 // Close provided storage
 func (s *Store) Close() error {
-	s.irw.Close()
-	return s.data.Close()
+	err := s.dw.Close()
+	if err != nil {
+		return err
+	}
+	err = s.dr.Close()
+	if err != nil {
+		return err
+	}
+	return s.irw.Close()
 }
 
 // Delete provided storage
 func (s *Store) Delete() error {
-	s.irw.Close()
+	if err := s.Close(); err != nil {
+		return err
+	}
 	os.Remove(s.name + ".idx")
-	s.data.Close()
 	return os.Remove(s.name + ".data")
 }
 
