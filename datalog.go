@@ -1,6 +1,7 @@
 package dieci
 
 import (
+	"bufio"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -13,12 +14,17 @@ const (
 // Datalog represents a datalog file
 type Datalog struct {
 	index  *Index
-	reader io.ReaderAt
+	reader ReadReaderAt
 	writer io.Writer
 }
 
+type ReadReaderAt interface {
+	io.Reader
+	io.ReaderAt
+}
+
 // NewDatalog returns a new datalog with the given name
-func NewDatalog(r io.ReaderAt, w io.Writer) *Datalog {
+func NewDatalog(r ReadReaderAt, w io.Writer) *Datalog {
 	return &Datalog{reader: r, writer: w}
 }
 
@@ -37,22 +43,38 @@ func (d *Datalog) Open(irw io.ReadWriter) error {
 
 // RebuildIndex by scaning datalog and writing cache again
 func (d *Datalog) RebuildIndex() error {
+	scanner := bufio.NewScanner(d.reader)
+	blockSize := intSize + scoreSize
+	scanner.Split(func(data []byte, eof bool) (int, []byte, error) {
+		if eof {
+			return 0, nil, io.EOF
+		}
+		if len(data) < blockSize {
+			return 0, nil, nil
+		}
+		advance := intSize + int(binary.BigEndian.Uint32(data[:intSize]))
+		if len(data) < advance {
+			return 0, nil, nil
+		}
+		return advance, data[:blockSize], nil
+	})
+
 	var err error
 	offset := 0
-	buf := make([]byte, intSize+scoreSize)
-	for {
-		if _, err = d.reader.ReadAt(buf, int64(offset)); err == io.EOF {
-			err = nil
-			break
-		}
-		size := int(binary.BigEndian.Uint32(buf[:intSize]))
+	for scanner.Scan() {
+		block := scanner.Bytes()
+		size := int(binary.BigEndian.Uint32(block[:intSize]))
 		var score Score
-		copy(score[:], buf[intSize:])
-		err = d.index.Write(score, Addr{pos: offset + intSize, size: size})
+		copy(score[:], block[intSize:])
+		addr := Addr{pos: offset + intSize, size: size}
+		err = d.index.Write(score, addr)
 		if err != nil {
 			break
 		}
 		offset += intSize + size
+	}
+	if err == nil {
+		err = scanner.Err()
 	}
 	return err
 }
