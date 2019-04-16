@@ -17,7 +17,7 @@ type kv struct {
 var storeName string
 var kvs []kv
 
-func TestAPI(t *testing.T) {
+func TestDieci(t *testing.T) {
 	assert := require.New(t)
 	var name string
 	kvs := make([]kv, 5)
