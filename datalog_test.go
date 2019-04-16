@@ -128,7 +128,3 @@ func BenchmarkRebuildIndex(b *testing.B) {
 	}
 	reader.Close()
 }
-
-func removeDatalogFile(name string) error {
-	return os.Remove(name + ".data")
-}
