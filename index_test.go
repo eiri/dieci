@@ -75,8 +75,8 @@ func TestIndex(t *testing.T) {
 	})
 }
 
-// BenchmarkIndexOpen for iterative improvement of open
-func BenchmarkIndexOpen(b *testing.B) {
+// BenchmarkOpenIndex for iterative improvement of open
+func BenchmarkOpenIndex(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		b.StopTimer()
 		f, err := os.Open("testdata/words.idx")
@@ -90,4 +90,39 @@ func BenchmarkIndexOpen(b *testing.B) {
 		}
 		f.Close()
 	}
+}
+
+// BenchmarkRebuildIndex for iterative improvement of rebuild
+func BenchmarkRebuildIndex(b *testing.B) {
+	// open data file
+	name := "testdata/words"
+	reader, err := os.Open(name + ".data")
+	if err != nil {
+		b.Fatal(err)
+	}
+	for n := 0; n < b.N; n++ {
+		// create an empty index and set it to datalog
+		idxName := RandomName()
+		f, err := os.Create(idxName + ".idx")
+		if err != nil {
+			b.Fatal(err)
+		}
+		idx, err := NewIndex(f)
+		if err != nil {
+			b.Fatal(err)
+		}
+		// isolated test
+		b.ResetTimer()
+		err = idx.Rebuild(reader)
+		if err != nil {
+			b.Fatal(err)
+		}
+		b.StopTimer()
+		if idx.Len() != 235886 {
+			b.Fatal("expected index cache to be fully propagated")
+		}
+		f.Close()
+		os.Remove(idxName + ".idx")
+	}
+	reader.Close()
 }
