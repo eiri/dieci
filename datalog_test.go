@@ -2,7 +2,6 @@ package dieci
 
 import (
 	"bytes"
-	"os"
 	"strings"
 	"testing"
 
@@ -17,24 +16,14 @@ func TestDataLog(t *testing.T) {
 	var datalog []byte
 	var index []byte
 
-	t.Run("open", func(t *testing.T) {
-		dw := bytes.NewBuffer([]byte{})
-		dr := bytes.NewReader([]byte{})
-		irw := bytes.NewBuffer([]byte{})
-
-		dl := NewDatalog(dr, dw)
-		err := dl.Open(irw)
-		assert.NoError(err)
-	})
-
 	t.Run("write", func(t *testing.T) {
 		dw := bytes.NewBuffer([]byte{})
 		dr := bytes.NewReader([]byte{})
 		irw := bytes.NewBuffer([]byte{})
-
-		dl := NewDatalog(dr, dw)
-		err := dl.Open(irw)
+		idx, err := NewIndex(irw)
 		assert.NoError(err)
+		dl := NewDatalog(dr, dw, idx)
+
 		for _, word := range strings.Fields(words) {
 			data := []byte(word)
 			expectedScore := MakeScore(data)
@@ -57,10 +46,10 @@ func TestDataLog(t *testing.T) {
 		tmp = make([]byte, len(index))
 		copy(tmp, index)
 		irw := bytes.NewBuffer(tmp)
-
-		dl := NewDatalog(dr, dw)
-		err := dl.Open(irw)
+		idx, err := NewIndex(irw)
 		assert.NoError(err)
+		dl := NewDatalog(dr, dw, idx)
+
 		for _, word := range strings.Fields(words) {
 			expectedData := []byte(word)
 			score := MakeScore(expectedData)
@@ -71,60 +60,18 @@ func TestDataLog(t *testing.T) {
 	})
 
 	t.Run("rebuild index", func(t *testing.T) {
-		tmp := make([]byte, len(datalog))
-		copy(tmp, datalog)
-		dw := bytes.NewBuffer([]byte{})
-		dr := bytes.NewReader(tmp)
-		tmp = make([]byte, len(index))
-		copy(tmp, index)
-		irw := bytes.NewBuffer(tmp)
-
-		dl := NewDatalog(dr, dw)
-		err := dl.Open(irw)
+		irw := bytes.NewBuffer([]byte{})
+		idx, err := NewIndex(irw)
 		assert.NoError(err)
+
+		dr := bytes.NewReader(datalog)
+		err = idx.Rebuild(dr)
+		assert.NoError(err)
+
 		for _, word := range strings.Fields(words) {
-			expectedData := []byte(word)
-			score := MakeScore(expectedData)
-			data, err := dl.Read(score)
-			assert.NoError(err)
-			assert.Equal(expectedData, data)
+			score := MakeScore([]byte(word))
+			_, ok := idx.Read(score)
+			assert.True(ok)
 		}
 	})
-}
-
-// BenchmarkRebuildIndex isolated
-func BenchmarkRebuildIndex(b *testing.B) {
-	// open data file
-	name := "testdata/words"
-	reader, err := os.Open(name + ".data")
-	if err != nil {
-		b.Fatal(err)
-	}
-	dl := &Datalog{reader: reader}
-	for n := 0; n < b.N; n++ {
-		// create an empty index and set it to datalog
-		idxName := RandomName()
-		idxF, err := os.Create(idxName + ".idx")
-		if err != nil {
-			b.Fatal(err)
-		}
-		idx, err := NewIndex(idxF)
-		if err != nil {
-			b.Fatal(err)
-		}
-		dl.index = idx
-		// isolated test
-		b.ResetTimer()
-		err = dl.RebuildIndex()
-		if err != nil {
-			b.Fatal(err)
-		}
-		b.StopTimer()
-		if len(idx.cache) != 235886 {
-			b.Fatal("expected index cache to be fully propagated")
-		}
-		idxF.Close()
-		os.Remove(idxName + ".idx")
-	}
-	reader.Close()
 }

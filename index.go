@@ -54,6 +54,44 @@ func NewIndex(rw io.ReadWriter) (*Index, error) {
 	return idx, nil
 }
 
+// Rebuild index by scaning given datalog reader
+func (idx *Index) Rebuild(reader io.Reader) error {
+	scanner := bufio.NewScanner(reader)
+	blockSize := intSize + scoreSize
+	scanner.Split(func(data []byte, eof bool) (int, []byte, error) {
+		if eof {
+			return 0, nil, io.EOF
+		}
+		if len(data) < blockSize {
+			return 0, nil, nil
+		}
+		advance := intSize + int(binary.BigEndian.Uint32(data[:intSize]))
+		if len(data) < advance {
+			return 0, nil, nil
+		}
+		return advance, data[:blockSize], nil
+	})
+
+	var err error
+	offset := 0
+	for scanner.Scan() {
+		block := scanner.Bytes()
+		size := int(binary.BigEndian.Uint32(block[:intSize]))
+		var score Score
+		copy(score[:], block[intSize:])
+		addr := Addr{pos: offset + intSize, size: size}
+		err = idx.Write(score, addr)
+		if err != nil {
+			break
+		}
+		offset += intSize + size
+	}
+	if err == nil {
+		err = scanner.Err()
+	}
+	return err
+}
+
 // Read reads address of data for a given score
 func (idx *Index) Read(score Score) (a Addr, ok bool) {
 	a, ok = idx.cache[score]

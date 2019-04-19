@@ -28,23 +28,36 @@ func New() (*Store, error) {
 
 // Open opens provided storage
 func Open(name string) (s *Store, err error) {
-	dw, err := os.OpenFile(name+".data", os.O_APPEND|os.O_WRONLY, 0600)
-	if err != nil {
-		return
-	}
-	dr, err := os.OpenFile(name+".data", os.O_RDONLY, 0600)
-	if err != nil {
-		return
-	}
-	data := NewDatalog(dr, dw)
 	irw, err := os.OpenFile(name+".idx", os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return
 	}
-	err = data.Open(irw)
+	idx, err := NewIndex(irw)
 	if err != nil {
+		irw.Close()
 		return
 	}
+	datalogName := fmt.Sprintf("%s.data", name)
+	dr, err := os.OpenFile(datalogName, os.O_RDONLY, 0600)
+	if err != nil {
+		irw.Close()
+		return
+	}
+	if idx.Len() == 0 {
+		err = idx.Rebuild(dr)
+	}
+	if err != nil {
+		irw.Close()
+		dr.Close()
+		return
+	}
+	dw, err := os.OpenFile(datalogName, os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		irw.Close()
+		dr.Close()
+		return
+	}
+	data := NewDatalog(dr, dw, idx)
 	s = &Store{
 		name: name,
 		data: data,
