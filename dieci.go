@@ -2,8 +2,6 @@
 package dieci
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"os"
 )
@@ -15,15 +13,6 @@ type Store struct {
 	dr   *os.File
 	dw   *os.File
 	irw  *os.File
-}
-
-// New creates a new empty storage
-func New() (*Store, error) {
-	name := RandomName()
-	if err := CreateDatalogFile(name); err != nil {
-		return nil, err
-	}
-	return Open(name)
 }
 
 // Open opens provided storage
@@ -108,18 +97,4 @@ func (s *Store) Delete() error {
 	}
 	os.Remove(s.name + ".idx")
 	return os.Remove(s.name + ".data")
-}
-
-// RandomName generator for new datastores
-func RandomName() string {
-	buf := make([]byte, 16)
-	rand.Read(buf)
-	return hex.EncodeToString(buf)
-}
-
-// CreateDatalogFile with assumption it doesn't exists, essentialy `touch`
-func CreateDatalogFile(name string) error {
-	f, err := os.OpenFile(name+".data", os.O_CREATE|os.O_EXCL, 0600)
-	defer f.Close()
-	return err
 }
