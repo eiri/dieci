@@ -57,11 +57,6 @@ func Open(name string) (s *Store, err error) {
 	return
 }
 
-// Name returns name of a store
-func (s *Store) Name() string {
-	return s.name
-}
-
 // Read a data for a given score
 func (s *Store) Read(score Score) (b []byte, err error) {
 	b, err = s.data.Read(score)
