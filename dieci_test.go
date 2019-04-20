@@ -19,16 +19,12 @@ var kvs []kv
 
 func TestDieci(t *testing.T) {
 	assert := require.New(t)
-	var name string
-	kvs := make([]kv, 5)
+	name := "test-index"
+	f, err := os.Create(name + ".data")
+	assert.NoError(err)
+	f.Close()
 
-	t.Run("new", func(t *testing.T) {
-		ds, err := dieci.New()
-		assert.NoError(err)
-		name = ds.Name()
-		ds.Close()
-		assert.FileExists(name + ".data")
-	})
+	kvs := make([]kv, 5)
 
 	t.Run("open", func(t *testing.T) {
 		ds, err := dieci.Open(name)
@@ -111,13 +107,18 @@ func BenchmarkOpen(b *testing.B) {
 
 // BenchmarkWrite for iterative improvement or writes
 func BenchmarkWrite(b *testing.B) {
-	s, err := dieci.New()
+	b.StopTimer()
+	f, err := os.Create("test-index.data")
 	if err != nil {
 		b.Fatal(err)
 	}
-	b.ResetTimer()
+	f.Close()
+	ds, err := dieci.Open("test-index")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer ds.Delete()
 	for n := 0; n < b.N; n++ {
-		b.StopTimer()
 		docSize := 1024
 		doc := make([]byte, docSize)
 		_, err = rand.Read(doc)
@@ -125,13 +126,12 @@ func BenchmarkWrite(b *testing.B) {
 			b.Fatal(err)
 		}
 		b.StartTimer()
-		_, err = s.Write(doc)
+		_, err = ds.Write(doc)
 		if err != nil {
 			b.Fatal(err)
 		}
+		b.StopTimer()
 	}
-	b.StopTimer()
-	s.Delete()
 }
 
 // BenchmarkRead for iterative improvement of reads

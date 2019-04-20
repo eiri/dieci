@@ -2,6 +2,7 @@ package dieci
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -94,6 +95,7 @@ func BenchmarkOpenIndex(b *testing.B) {
 
 // BenchmarkRebuildIndex for iterative improvement of rebuild
 func BenchmarkRebuildIndex(b *testing.B) {
+	b.StopTimer()
 	// open data file
 	name := "testdata/words"
 	reader, err := os.Open(name + ".data")
@@ -102,8 +104,8 @@ func BenchmarkRebuildIndex(b *testing.B) {
 	}
 	for n := 0; n < b.N; n++ {
 		// create an empty index and set it to datalog
-		idxName := RandomName()
-		f, err := os.Create(idxName + ".idx")
+		idxName := fmt.Sprintf("index%05d.idx", n)
+		f, err := os.Create(idxName)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -112,7 +114,7 @@ func BenchmarkRebuildIndex(b *testing.B) {
 			b.Fatal(err)
 		}
 		// isolated test
-		b.ResetTimer()
+		b.StartTimer()
 		err = idx.Rebuild(reader)
 		if err != nil {
 			b.Fatal(err)
@@ -122,7 +124,7 @@ func BenchmarkRebuildIndex(b *testing.B) {
 			b.Fatal("expected index cache to be fully propagated")
 		}
 		f.Close()
-		os.Remove(idxName + ".idx")
+		os.Remove(idxName)
 	}
 	reader.Close()
 }
