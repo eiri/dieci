@@ -74,12 +74,10 @@ func (s *Store) Write(b []byte) (score Score, err error) {
 
 // Close provided storage
 func (s *Store) Close() error {
-	err := s.dw.Close()
-	if err != nil {
+	if err := s.dw.Close(); err != nil {
 		return err
 	}
-	err = s.dr.Close()
-	if err != nil {
+	if err := s.dr.Close(); err != nil {
 		return err
 	}
 	return s.irw.Close()
