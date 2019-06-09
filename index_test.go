@@ -21,7 +21,7 @@ func TestIndex(t *testing.T) {
 		idxRW := bytes.NewBuffer([]byte{})
 		idx, err := NewIndex(idxRW)
 		assert.NoError(err)
-		assert.Equal(0, idx.Cur())
+		assert.Equal(0, idx.cur)
 		pos := 0
 		for _, word := range strings.Fields(words) {
 			data := []byte(word)
@@ -47,7 +47,7 @@ func TestIndex(t *testing.T) {
 		idx, err := NewIndex(idxRW)
 		assert.NoError(err)
 		assert.Len(idx.cache, len(strings.Fields(words)))
-		assert.Equal(35, idx.Cur())
+		assert.Equal(35, idx.cur)
 	})
 
 	t.Run("read", func(t *testing.T) {
@@ -56,7 +56,7 @@ func TestIndex(t *testing.T) {
 		idxRW := bytes.NewBuffer(tmp)
 		idx, err := NewIndex(idxRW)
 		assert.NoError(err)
-		assert.Equal(35, idx.Cur())
+		assert.Equal(35, idx.cur)
 		pos := 0
 		for _, word := range strings.Fields(words) {
 			data := []byte(word)
