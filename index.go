@@ -107,7 +107,7 @@ func (idx *Index) Write(score Score, size int) error {
 	idx.cur = addr.pos + addr.size
 	buf := idx.Encode(score, addr)
 	if _, err := idx.rw.Write(buf); err != nil {
-		return fmt.Errorf("index write failed: %s", err)
+		return fmt.Errorf("index: write failed: %s", err)
 	}
 	return nil
 }
