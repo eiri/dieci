@@ -29,14 +29,11 @@ func (d *Datalog) Read(score Score) ([]byte, error) {
 		err := fmt.Errorf("Unknown score %s", score)
 		return nil, err
 	}
-	data := make([]byte, a.size-scoreSize)
-	n, err := d.reader.ReadAt(data, int64(a.pos+scoreSize))
-	if err != nil {
+	block := make([]byte, a.size)
+	if _, err := d.reader.ReadAt(block, int64(a.pos)); err != nil {
 		return nil, err
 	}
-	if n != a.size-scoreSize {
-		return nil, fmt.Errorf("Read failed")
-	}
+	_, data := d.Decode(block)
 	return data, nil
 }
 
@@ -60,7 +57,7 @@ func (d *Datalog) Write(data []byte) (Score, error) {
 	return score, nil
 }
 
-// Encode data and its score into slice of bytes suitable to write on disk
+// Encode score and data into slice of bytes
 func (d *Datalog) Encode(score Score, data []byte) []byte {
 	size := scoreSize + len(data)
 	buf := make([]byte, intSize+size)
@@ -68,4 +65,10 @@ func (d *Datalog) Encode(score Score, data []byte) []byte {
 	copy(buf[intSize:], score[:])
 	copy(buf[intSize+scoreSize:], data)
 	return buf
+}
+
+// Decode score and data from given slice of bytes
+func (d *Datalog) Decode(block []byte) (score Score, data []byte) {
+	copy(score[:], block[:scoreSize])
+	return score, block[scoreSize:]
 }
