@@ -28,11 +28,11 @@ func TestIndex(t *testing.T) {
 			size := len(data)
 			score := MakeScore(data)
 			expAddr := Addr{pos, size}
-			err := idx.Write(score, Addr{pos: pos, size: size})
+			err := idx.Write(score, size)
 			assert.NoError(err)
 			assert.Equal(expAddr, idx.cache[score])
 			pos += size
-			err = idx.Write(score, Addr{pos: 0, size: 0})
+			err = idx.Write(score, 0)
 			assert.NoError(err)
 			assert.Equal(expAddr, idx.cache[score], "Should ignore update")
 		}

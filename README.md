@@ -12,6 +12,23 @@ This is an experimental immutable binary store with _write-once_ policy infuence
 
 _Dieci_ is _ten_ in Italian. The name somehow maybe related to _venti_ which is _twenty_ in Italian.
 
+## Datalog and Index format
+
+```
+
+Datalog: +----------+--------------------+-----------------+---
+         | size (4) | score (16)         | data (...)      |
+         +----------+--------------------+-----------------+---
+
+Index:   +----------+----------+--------------------+---
+         | pos (4)  | size (4) | score (16)         |
+         +----------+----------+--------------------+---
+
+  position (uint32) - Position of datalog's block _starting_ from size
+  size (uint32) - Size of datalog's data block _including_ its score
+
+```
+
 ## Licence
 
 [MIT](https://github.com/eiri/dieci/blob/master/LICENSE)
