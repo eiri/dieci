@@ -102,7 +102,7 @@ func (idx *Index) Write(score Score, size int) error {
 	if _, ok := idx.cache[score]; ok {
 		return nil
 	}
-	addr := Addr{pos: idx.Cur(), size: size}
+	addr := Addr{pos: idx.cur, size: size}
 	idx.cache[score] = addr
 	idx.cur = addr.pos + addr.size
 	buf := idx.Encode(score, addr)
@@ -134,9 +134,4 @@ func (idx *Index) Encode(score Score, addr Addr) []byte {
 // Len returns current length of cache
 func (idx *Index) Len() int {
 	return len(idx.cache)
-}
-
-// Cur returns cursor (aa EOF) position according to the index
-func (idx *Index) Cur() int {
-	return idx.cur
 }
