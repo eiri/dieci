@@ -79,8 +79,7 @@ func (idx *Index) Rebuild(reader io.Reader) error {
 		size := int(binary.BigEndian.Uint32(block[:intSize]))
 		var score Score
 		copy(score[:], block[intSize:])
-		addr := Addr{pos: offset + intSize, size: size}
-		err = idx.Write(score, addr)
+		err = idx.Write(score, size)
 		if err != nil {
 			break
 		}
@@ -99,10 +98,11 @@ func (idx *Index) Read(score Score) (a Addr, ok bool) {
 }
 
 // Write writes given score into index file and adds it to the cache
-func (idx *Index) Write(score Score, addr Addr) error {
+func (idx *Index) Write(score Score, size int) error {
 	if _, ok := idx.cache[score]; ok {
 		return nil
 	}
+	addr := Addr{pos: idx.Cur(), size: size}
 	idx.cache[score] = addr
 	idx.cur = addr.pos + addr.size
 	buf := idx.Encode(score, addr)

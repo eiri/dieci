@@ -44,14 +44,11 @@ func (d *Datalog) Write(data []byte) (Score, error) {
 		return score, nil
 	}
 	buf := d.Encode(score, data)
-	n, err := d.writer.Write(buf)
+	size, err := d.writer.Write(buf)
 	if err != nil {
 		return Score{}, err
 	}
-	pos := d.index.Cur() + intSize
-	size := n - intSize
-	err = d.index.Write(score, Addr{pos: pos, size: size})
-	if err != nil {
+	if err = d.index.Write(score, size); err != nil {
 		return Score{}, err
 	}
 	return score, nil
@@ -69,6 +66,6 @@ func (d *Datalog) Encode(score Score, data []byte) []byte {
 
 // Decode score and data from given slice of bytes
 func (d *Datalog) Decode(block []byte) (score Score, data []byte) {
-	copy(score[:], block[:scoreSize])
-	return score, block[scoreSize:]
+	copy(score[:], block[intSize:])
+	return score, block[intSize+scoreSize:]
 }
