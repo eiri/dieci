@@ -26,7 +26,7 @@ func NewDatalog(r io.ReaderAt, w io.Writer, idx *Index) *Datalog {
 func (d *Datalog) Read(score Score) ([]byte, error) {
 	a, ok := d.index.Read(score)
 	if !ok {
-		err := fmt.Errorf("Unknown score %s", score)
+		err := fmt.Errorf("datalog: unknown score %s", score)
 		return nil, err
 	}
 	block := make([]byte, a.size)

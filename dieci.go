@@ -62,7 +62,7 @@ func (s *Store) Read(score Score) (b []byte, err error) {
 	b, err = s.data.Read(score)
 	if score != MakeScore(b) {
 		b = nil
-		err = fmt.Errorf("Checksum failure")
+		err = fmt.Errorf("dieci: checksum failure")
 	}
 	return
 }
