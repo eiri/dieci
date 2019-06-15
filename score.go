@@ -1,12 +1,14 @@
 package dieci
 
 import (
-	"crypto/md5"
+	"encoding/binary"
 	"encoding/hex"
+
+	"github.com/cespare/xxhash"
 )
 
 // scoreSize is the size of score in bytes
-const scoreSize = 16
+const scoreSize = 8
 
 // Score is type alias for score representation
 type Score [scoreSize]byte
@@ -17,6 +19,8 @@ func (s Score) String() string {
 
 // MakeScore creates a score for a given data block
 func MakeScore(b []byte) Score {
-	score := md5.Sum(b)
+	sum := xxhash.Sum64(b)
+	score := Score{}
+	binary.BigEndian.PutUint64(score[:], sum)
 	return score
 }
