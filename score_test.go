@@ -11,6 +11,6 @@ import (
 func TestScoreMakeScore(t *testing.T) {
 	data := []byte("brown fox")
 	score := MakeScore(data)
-	expect := "fdd929ffb0a167ab33e8b1a8905858cf"
+	expect := "7113fd84e8973eb2"
 	assert.Equal(t, expect, fmt.Sprintf("%s", score))
 }
