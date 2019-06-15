@@ -8,8 +8,7 @@ import (
 )
 
 const (
-	blockSize = 24   // 4 + 4 + 16
-	pageSize  = 4080 // 4096 - (4096 mod 24)
+	blockSize = 16 // 4 + 4 + 8
 )
 
 // Addr is data position and size in datalog
@@ -32,16 +31,13 @@ type Index struct {
 func NewIndex(rw io.ReadWriter) (*Index, error) {
 	cache := make(cache)
 	idx := &Index{cache: cache, rw: rw}
-	r := bufio.NewReaderSize(rw, pageSize)
-	scanner := bufio.NewScanner(r)
+	scanner := bufio.NewScanner(rw)
 	scanner.Split(func(data []byte, eof bool) (int, []byte, error) {
 		if eof && len(data) == 0 {
 			return 0, nil, io.EOF
 		}
 		return blockSize, data, nil
 	})
-	buf := make([]byte, blockSize)
-	scanner.Buffer(buf, blockSize)
 	for scanner.Scan() {
 		block := scanner.Bytes()
 		score, addr := idx.Decode(block)
