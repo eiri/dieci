@@ -69,7 +69,6 @@ func (idx *Index) Rebuild(reader io.Reader) error {
 	})
 
 	var err error
-	offset := 0
 	for scanner.Scan() {
 		block := scanner.Bytes()
 		size := int(binary.BigEndian.Uint32(block[:intSize]))
@@ -79,7 +78,6 @@ func (idx *Index) Rebuild(reader io.Reader) error {
 		if err != nil {
 			break
 		}
-		offset += intSize + size
 	}
 	if err == nil {
 		err = scanner.Err()
