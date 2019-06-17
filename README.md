@@ -17,13 +17,14 @@ _Dieci_ is _ten_ in Italian. The name somehow maybe related to _venti_ which is 
 ```
 
 Datalog: +----------+--------------------+-----------------+---
-         | size (4) | score (16)         | data (...)      |
+         | size (4) | score (8)          | data (...)      |
          +----------+--------------------+-----------------+---
 
-Index:   +----------+----------+--------------------+---
-         | pos (4)  | size (4) | score (16)         |
-         +----------+----------+--------------------+---
+Index:   +-----------+----------+----------+-----------+---
+         | score (8) | pos (4)  | size (4) | score (8) |
+         +-----------+----------+----------+-----------+---
 
+  score (byte[8]) - Data primary key, xxHash64(data)
   position (uint32) - Position of datalog's block _starting_ from size
   size (uint32) - Size of datalog's data block _including_ its score
 

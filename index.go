@@ -107,21 +107,20 @@ func (idx *Index) Write(score Score, size int) error {
 }
 
 // Decode serialized bytes to score and addess
-func (idx *Index) Decode(block []byte) (Score, Addr) {
-	pos := binary.BigEndian.Uint32(block[0:])
-	size := binary.BigEndian.Uint32(block[4:])
-	var score Score
-	copy(score[:], block[8:])
-	addr := Addr{pos: int(pos), size: int(size)}
+func (idx *Index) Decode(block []byte) (score Score, addr Addr) {
+	copy(score[:], block[:])
+	pos := binary.BigEndian.Uint32(block[scoreSize:])
+	size := binary.BigEndian.Uint32(block[scoreSize+4:])
+	addr = Addr{pos: int(pos), size: int(size)}
 	return score, addr
 }
 
 // Encode serialize map entry into slice of bytes suitable to write on disk
 func (idx *Index) Encode(score Score, addr Addr) []byte {
 	buf := make([]byte, blockSize)
-	binary.BigEndian.PutUint32(buf[0:], uint32(addr.pos))
-	binary.BigEndian.PutUint32(buf[4:], uint32(addr.size))
-	copy(buf[8:], score[:])
+	copy(buf[:], score[:])
+	binary.BigEndian.PutUint32(buf[scoreSize:], uint32(addr.pos))
+	binary.BigEndian.PutUint32(buf[scoreSize+4:], uint32(addr.size))
 	return buf
 }
 
