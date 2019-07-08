@@ -74,7 +74,7 @@ func (idx *Index) Rebuild(reader io.Reader) error {
 		size := int(binary.BigEndian.Uint32(block[:intSize]))
 		var score Score
 		copy(score[:], block[intSize:])
-		err = idx.Write(score, size)
+		err = idx.Write(score, size+4)
 		if err != nil {
 			break
 		}
