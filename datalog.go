@@ -48,9 +48,7 @@ func (d *Datalog) Write(data []byte) (Score, error) {
 	if err != nil {
 		return Score{}, err
 	}
-	if err = d.index.Write(score, size); err != nil {
-		return Score{}, err
-	}
+	d.index.Write(score, size)
 	return score, nil
 }
 

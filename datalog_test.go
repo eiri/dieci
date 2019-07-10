@@ -27,13 +27,11 @@ func TestDataLog(t *testing.T) {
 	}
 
 	var datalog []byte
-	var index []byte
 
 	t.Run("write", func(t *testing.T) {
 		dr := bytes.NewReader([]byte{})
 		dw := bytes.NewBuffer([]byte{})
-		irw := bytes.NewBuffer([]byte{})
-		idx, err := NewIndex(irw)
+		idx, err := NewIndex(dr)
 		assert.NoError(err)
 		dl := NewDatalog(dr, dw, idx)
 		for _, tt := range datalogtests {
@@ -46,25 +44,12 @@ func TestDataLog(t *testing.T) {
 		}
 		datalog = make([]byte, dw.Len())
 		copy(datalog, dw.Bytes())
-		index = make([]byte, irw.Len())
-		copy(index, irw.Bytes())
-	})
-
-	t.Run("rebuild index", func(t *testing.T) {
-		dr := bytes.NewReader(datalog)
-		irw := bytes.NewBuffer([]byte{})
-		idx, err := NewIndex(irw)
-		assert.NoError(err)
-		err = idx.Rebuild(dr)
-		assert.NoError(err)
-		assert.Equal(index, irw.Bytes())
 	})
 
 	t.Run("read", func(t *testing.T) {
 		dr := bytes.NewReader(datalog)
 		dw := bytes.NewBuffer([]byte{})
-		irw := bytes.NewBuffer(index)
-		idx, err := NewIndex(irw)
+		idx, err := NewIndex(dr)
 		assert.NoError(err)
 		dl := NewDatalog(dr, dw, idx)
 		for _, tt := range datalogtests {

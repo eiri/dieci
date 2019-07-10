@@ -2,7 +2,6 @@ package dieci
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"testing"
 
@@ -18,31 +17,29 @@ func TestIndex(t *testing.T) {
 		addr Addr
 		ok   bool
 	}{
-		{"the", Addr{pos: 0, size: 3}, true},
-		{"quick", Addr{pos: 3, size: 5}, true},
-		{"brown", Addr{pos: 8, size: 5}, true},
-		{"fox", Addr{pos: 13, size: 3}, true},
-		{"jumps", Addr{pos: 16, size: 5}, true},
-		{"over", Addr{pos: 21, size: 4}, true},
+		{"the", Addr{pos: 0, size: 15}, true},
+		{"quick", Addr{pos: 15, size: 17}, true},
+		{"brown", Addr{pos: 32, size: 17}, true},
+		{"fox", Addr{pos: 49, size: 15}, true},
+		{"jumps", Addr{pos: 64, size: 17}, true},
+		{"over", Addr{pos: 81, size: 16}, true},
 		{"missing", Addr{pos: 0, size: 0}, false},
-		{"the", Addr{pos: 0, size: 3}, true},
-		{"lazy", Addr{pos: 25, size: 4}, true},
-		{"dog", Addr{pos: 29, size: 3}, true},
+		{"the", Addr{pos: 0, size: 15}, true},
+		{"lazy", Addr{pos: 97, size: 16}, true},
+		{"dog", Addr{pos: 113, size: 15}, true},
 	}
 
-	var index []byte
-
 	t.Run("open empty", func(t *testing.T) {
-		rw := bytes.NewBuffer([]byte{})
-		idx, err := NewIndex(rw)
+		reader := bytes.NewReader([]byte{})
+		idx, err := NewIndex(reader)
 		assert.NoError(err)
 		assert.Len(idx.cache, 0)
 		assert.Equal(0, idx.cur)
 	})
 
 	t.Run("write", func(t *testing.T) {
-		rw := bytes.NewBuffer([]byte{})
-		idx, err := NewIndex(rw)
+		reader := bytes.NewReader([]byte{})
+		idx, err := NewIndex(reader)
 		assert.NoError(err)
 		for _, tt := range idxtests {
 			if !tt.ok {
@@ -51,28 +48,26 @@ func TestIndex(t *testing.T) {
 			data := []byte(tt.in)
 			size := len(data)
 			score := MakeScore(data)
-			err := idx.Write(score, size)
-			assert.NoError(err)
 			before := idx.Len()
-			err = idx.Write(score, 0)
-			assert.NoError(err)
-			assert.Equal(before, idx.Len(), "Should ignore same update")
+			idx.Write(score, size)
+			assert.GreaterOrEqual(idx.Len(), before)
+			before = idx.Len()
+			idx.Write(score, 0)
+			assert.Equal(idx.Len(), before, "Should ignore same update")
 		}
-		index = make([]byte, rw.Len())
-		copy(index, rw.Bytes())
 	})
 
 	t.Run("open", func(t *testing.T) {
-		rw := bytes.NewBuffer(index)
-		idx, err := NewIndex(rw)
+		reader := readerFromDatalog()
+		idx, err := NewIndex(reader)
 		assert.NoError(err)
 		assert.Len(idx.cache, 8)
-		assert.Equal(32, idx.cur)
+		assert.Equal(int(reader.Size()), idx.cur)
 	})
 
 	t.Run("read", func(t *testing.T) {
-		rw := bytes.NewBuffer(index)
-		idx, err := NewIndex(rw)
+		reader := readerFromDatalog()
+		idx, err := NewIndex(reader)
 		assert.NoError(err)
 		for _, tt := range idxtests {
 			score := MakeScore([]byte(tt.in))
@@ -91,7 +86,7 @@ func TestIndex(t *testing.T) {
 func BenchmarkOpenIndex(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		b.StopTimer()
-		f, err := os.Open("testdata/words.idx")
+		f, err := os.Open("testdata/words.data")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -104,38 +99,15 @@ func BenchmarkOpenIndex(b *testing.B) {
 	}
 }
 
-// BenchmarkRebuildIndex for iterative improvement of rebuild
-func BenchmarkRebuildIndex(b *testing.B) {
-	b.StopTimer()
-	// open data file
-	name := "testdata/words"
-	reader, err := os.Open(name + ".data")
-	if err != nil {
-		b.Fatal(err)
+// FIXME! - this is a hack, I'm obviously need something better here
+func readerFromDatalog() *bytes.Reader {
+	dr := bytes.NewReader([]byte{})
+	dw := bytes.NewBuffer([]byte{})
+	idx, _ := NewIndex(dr)
+	dl := NewDatalog(dr, dw, idx)
+	for _, word := range []string{"the", "quick", "brown", "fox", "jumps", "over", "lazy", "dog"} {
+		data := []byte(word)
+		dl.Write(data)
 	}
-	for n := 0; n < b.N; n++ {
-		// create an empty index and set it to datalog
-		idxName := fmt.Sprintf("index%05d.idx", n)
-		f, err := os.Create(idxName)
-		if err != nil {
-			b.Fatal(err)
-		}
-		idx, err := NewIndex(f)
-		if err != nil {
-			b.Fatal(err)
-		}
-		// isolated test
-		b.StartTimer()
-		err = idx.Rebuild(reader)
-		if err != nil {
-			b.Fatal(err)
-		}
-		b.StopTimer()
-		if idx.Len() != 235886 {
-			b.Fatal("expected index cache to be fully propagated")
-		}
-		f.Close()
-		os.Remove(idxName)
-	}
-	reader.Close()
+	return bytes.NewReader(dw.Bytes())
 }
