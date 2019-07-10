@@ -12,37 +12,22 @@ type Store struct {
 	data *Datalog
 	dr   *os.File
 	dw   *os.File
-	irw  *os.File
 }
 
 // Open opens provided storage
 func Open(name string) (s *Store, err error) {
-	irw, err := os.OpenFile(name+".idx", os.O_CREATE|os.O_RDWR, 0600)
-	if err != nil {
-		return
-	}
-	idx, err := NewIndex(irw)
-	if err != nil {
-		irw.Close()
-		return
-	}
 	datalogName := fmt.Sprintf("%s.data", name)
 	dr, err := os.OpenFile(datalogName, os.O_RDONLY, 0600)
 	if err != nil {
-		irw.Close()
 		return
 	}
-	if idx.Len() == 0 {
-		err = idx.Rebuild(dr)
-	}
+	idx, err := NewIndex(dr)
 	if err != nil {
-		irw.Close()
 		dr.Close()
 		return
 	}
 	dw, err := os.OpenFile(datalogName, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
-		irw.Close()
 		dr.Close()
 		return
 	}
@@ -52,7 +37,6 @@ func Open(name string) (s *Store, err error) {
 		data: data,
 		dr:   dr,
 		dw:   dw,
-		irw:  irw,
 	}
 	return
 }
@@ -77,10 +61,7 @@ func (s *Store) Close() error {
 	if err := s.dw.Close(); err != nil {
 		return err
 	}
-	if err := s.dr.Close(); err != nil {
-		return err
-	}
-	return s.irw.Close()
+	return s.dr.Close()
 }
 
 // Delete provided storage
@@ -88,6 +69,5 @@ func (s *Store) Delete() error {
 	if err := s.Close(); err != nil {
 		return err
 	}
-	os.Remove(s.name + ".idx")
 	return os.Remove(s.name + ".data")
 }
