@@ -43,7 +43,7 @@ func Open(name string) (s *Store, err error) {
 
 // Read a data for a given score
 func (s *Store) Read(score Score) (b []byte, err error) {
-	b, err = s.data.Read(score)
+	b, err = s.data.Get(score)
 	if score != MakeScore(b) {
 		b = nil
 		err = fmt.Errorf("dieci: checksum failure")
@@ -53,7 +53,7 @@ func (s *Store) Read(score Score) (b []byte, err error) {
 
 // Write given data and return it's score
 func (s *Store) Write(b []byte) (score Score, err error) {
-	return s.data.Write(b)
+	return s.data.Put(b)
 }
 
 // Close provided storage

@@ -22,8 +22,8 @@ func NewDatalog(r io.ReaderAt, w io.Writer, idx *Index) *Datalog {
 	return &Datalog{reader: r, writer: w, index: idx}
 }
 
-// Read reads data for a given position and length
-func (d *Datalog) Read(score Score) ([]byte, error) {
+// Get reads data for a given position and length
+func (d *Datalog) Get(score Score) ([]byte, error) {
 	a, ok := d.index.Read(score)
 	if !ok {
 		err := fmt.Errorf("datalog: unknown score %s", score)
@@ -37,8 +37,8 @@ func (d *Datalog) Read(score Score) ([]byte, error) {
 	return data, nil
 }
 
-// Write writes given data into datalog and returns it's position and length
-func (d *Datalog) Write(data []byte) (Score, error) {
+// Put writes given data into datalog and returns it's position and length
+func (d *Datalog) Put(data []byte) (Score, error) {
 	score := MakeScore(data)
 	if _, ok := d.index.Read(score); ok {
 		return score, nil
