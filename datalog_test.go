@@ -28,7 +28,7 @@ func TestDataLog(t *testing.T) {
 
 	var datalog []byte
 
-	t.Run("write", func(t *testing.T) {
+	t.Run("put", func(t *testing.T) {
 		dr := bytes.NewReader([]byte{})
 		dw := bytes.NewBuffer([]byte{})
 		idx, err := NewIndex(dr)
@@ -37,7 +37,7 @@ func TestDataLog(t *testing.T) {
 		for _, tt := range datalogtests {
 			data := []byte(tt.in)
 			expectedScore := MakeScore(data)
-			score, err := dl.Write(data)
+			score, err := dl.Put(data)
 			assert.NoError(err)
 			assert.Equal(expectedScore, score)
 			assert.Len(dw.Bytes(), tt.size)
@@ -46,7 +46,7 @@ func TestDataLog(t *testing.T) {
 		copy(datalog, dw.Bytes())
 	})
 
-	t.Run("read", func(t *testing.T) {
+	t.Run("get", func(t *testing.T) {
 		dr := bytes.NewReader(datalog)
 		dw := bytes.NewBuffer([]byte{})
 		idx, err := NewIndex(dr)
@@ -55,7 +55,7 @@ func TestDataLog(t *testing.T) {
 		for _, tt := range datalogtests {
 			expectedData := []byte(tt.in)
 			score := MakeScore(expectedData)
-			data, err := dl.Read(score)
+			data, err := dl.Get(score)
 			assert.NoError(err)
 			assert.Equal(expectedData, data)
 		}

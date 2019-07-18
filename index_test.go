@@ -107,7 +107,7 @@ func readerFromDatalog() *bytes.Reader {
 	dl := NewDatalog(dr, dw, idx)
 	for _, word := range []string{"the", "quick", "brown", "fox", "jumps", "over", "lazy", "dog"} {
 		data := []byte(word)
-		dl.Write(data)
+		dl.Put(data)
 	}
 	return bytes.NewReader(dw.Bytes())
 }
