@@ -19,7 +19,8 @@ type Datalog struct {
 
 // NewDatalog returns a new datalog with the given name
 func NewDatalog(r io.ReaderAt, w io.Writer, idx *Index) *Datalog {
-	return &Datalog{reader: r, writer: w, index: idx}
+	writer := NewWriter(w)
+	return &Datalog{reader: r, writer: writer, index: idx}
 }
 
 // Get reads data for a given position and length
@@ -43,8 +44,7 @@ func (d *Datalog) Put(data []byte) (Score, error) {
 	if _, ok := d.index.Read(score); ok {
 		return score, nil
 	}
-	buf := d.Encode(score, data)
-	size, err := d.writer.Write(buf)
+	size, err := d.writer.Write(data)
 	if err != nil {
 		return Score{}, err
 	}
@@ -52,18 +52,39 @@ func (d *Datalog) Put(data []byte) (Score, error) {
 	return score, nil
 }
 
-// Encode score and data into slice of bytes
-func (d *Datalog) Encode(score Score, data []byte) []byte {
-	size := scoreSize + len(data)
-	buf := make([]byte, intSize+size)
-	binary.BigEndian.PutUint32(buf, uint32(size))
-	copy(buf[intSize:], score[:])
-	copy(buf[intSize+scoreSize:], data)
-	return buf
-}
-
 // Decode score and data from given slice of bytes
 func (d *Datalog) Decode(block []byte) (score Score, data []byte) {
 	copy(score[:], block[intSize:])
 	return score, block[intSize+scoreSize:]
+}
+
+// Writer is io.Writer
+// Writes to a Writer are encoded and written to w
+type Writer struct {
+	w     io.Writer
+	score Score
+	err   error
+}
+
+// NewWriter returns a new Writer
+func NewWriter(w io.Writer) *Writer {
+	dw := new(Writer)
+	*dw = Writer{w: w}
+	return dw
+}
+
+// Write is an implementation of Writer interface
+func (dw *Writer) Write(data []byte) (int, error) {
+	if dw.err != nil {
+		return 0, dw.err
+	}
+	var n int
+	dw.score = MakeScore(data)
+	size := scoreSize + len(data)
+	buf := make([]byte, intSize+size)
+	binary.BigEndian.PutUint32(buf, uint32(size))
+	copy(buf[intSize:], dw.score[:])
+	copy(buf[intSize+scoreSize:], data)
+	n, dw.err = dw.w.Write(buf)
+	return n, dw.err
 }
