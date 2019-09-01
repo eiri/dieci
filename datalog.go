@@ -34,7 +34,14 @@ func (d *Datalog) Get(score Score) ([]byte, error) {
 	if _, err := d.reader.ReadAt(block, int64(a.pos)); err != nil {
 		return nil, err
 	}
-	_, data := d.Decode(block)
+	score2 := Score{}
+	copy(score2[:], block[intSize:])
+	if score != score2 {
+		err := fmt.Errorf("datalog: invalid checksum")
+		return nil, err
+	}
+	data := make([]byte, a.size-intSize-scoreSize)
+	copy(data[:], block[intSize+scoreSize:])
 	return data, nil
 }
 
@@ -50,12 +57,6 @@ func (d *Datalog) Put(data []byte) (Score, error) {
 	}
 	d.index.Write(score, size)
 	return score, nil
-}
-
-// Decode score and data from given slice of bytes
-func (d *Datalog) Decode(block []byte) (score Score, data []byte) {
-	copy(score[:], block[intSize:])
-	return score, block[intSize+scoreSize:]
 }
 
 // Writer is io.Writer
