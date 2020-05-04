@@ -64,7 +64,7 @@ func (s *Store) Read(score Score) ([]byte, error) {
 
 // Write given data and return it's score
 func (s *Store) Write(data []byte) (Score, error) {
-	score := MakeScore(data)
+	score := s.data.Score(data)
 	if _, ok := s.index.Get(score); ok {
 		return score, nil
 	}

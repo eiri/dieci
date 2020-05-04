@@ -37,7 +37,7 @@ func (dl *Datalog) ReadAt(data []byte, off int64) (int, error) {
 
 	// FIXME maybe push on dieci side to make checksum an optional
 	score, stored := dl.Deserialize(data)
-	check := MakeScore(stored)
+	check := dl.Score(stored)
 	if score != check {
 		err := fmt.Errorf("datalog: invalid checksum")
 		return 0, err
@@ -46,12 +46,17 @@ func (dl *Datalog) ReadAt(data []byte, off int64) (int, error) {
 	return n, nil
 }
 
+// Score returns a score for give data
+func (dl *Datalog) Score(data []byte) Score {
+	return MakeScore(data)
+}
+
 // Write is an implementation of Writer interface
 func (dl *Datalog) Write(data []byte) (int, error) {
 	if dl.err != nil {
 		return 0, dl.err
 	}
-	score := MakeScore(data)
+	score := dl.Score(data)
 	buf := dl.Serialize(score, data)
 	n, err := dl.writer.Write(buf)
 	if err != nil {
