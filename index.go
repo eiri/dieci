@@ -34,7 +34,8 @@ func NewIndex() *Index {
 
 // Load reads given reader of datalog and fills index with its scores
 func (idx *Index) Load(reader io.Reader) error {
-	idx = NewIndex()
+	idx.cache = make(cache)
+	idx.cur = 0
 	scanner := bufio.NewScanner(reader)
 	blockSize := intSize + scoreSize
 	scanner.Split(func(data []byte, eof bool) (int, []byte, error) {

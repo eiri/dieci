@@ -14,25 +14,24 @@ type kv struct {
 	data  []byte
 }
 
-var storeName string
 var kvs []kv
 
 func TestDieci(t *testing.T) {
 	assert := require.New(t)
-	name := "test-index"
+	name := "test"
 	f, err := os.Create(name + ".data")
 	assert.NoError(err)
 	f.Close()
 
 	kvs := make([]kv, 5)
 
-	t.Run("open", func(t *testing.T) {
+	t.Run("Open", func(t *testing.T) {
 		ds, err := dieci.Open(name)
 		assert.NoError(err)
 		ds.Close()
 	})
 
-	t.Run("write", func(t *testing.T) {
+	t.Run("Write", func(t *testing.T) {
 		ds, err := dieci.Open(name)
 		assert.NoError(err)
 		defer ds.Close()
@@ -53,7 +52,7 @@ func TestDieci(t *testing.T) {
 		}
 	})
 
-	t.Run("read", func(t *testing.T) {
+	t.Run("Read", func(t *testing.T) {
 		ds, err := dieci.Open(name)
 		assert.NoError(err)
 		defer ds.Close()
@@ -65,7 +64,7 @@ func TestDieci(t *testing.T) {
 		}
 	})
 
-	t.Run("read back", func(t *testing.T) {
+	t.Run("Write/Read", func(t *testing.T) {
 		for i := 0; i < 5; i++ {
 			ds, err := dieci.Open(name)
 			assert.NoError(err)
@@ -81,7 +80,7 @@ func TestDieci(t *testing.T) {
 		}
 	})
 
-	t.Run("delete", func(t *testing.T) {
+	t.Run("Delete", func(t *testing.T) {
 		assert.FileExists(name + ".data")
 		ds, err := dieci.Open(name)
 		assert.NoError(err)
@@ -108,12 +107,12 @@ func BenchmarkOpen(b *testing.B) {
 // BenchmarkWrite for iterative improvement or writes
 func BenchmarkWrite(b *testing.B) {
 	b.StopTimer()
-	f, err := os.Create("test-index.data")
+	f, err := os.Create("test.data")
 	if err != nil {
 		b.Fatal(err)
 	}
 	f.Close()
-	ds, err := dieci.Open("test-index")
+	ds, err := dieci.Open("test")
 	if err != nil {
 		b.Fatal(err)
 	}

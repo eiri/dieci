@@ -69,8 +69,8 @@ func TestIndex(t *testing.T) {
 	})
 }
 
-// BenchmarkIndexLoad for iterative improvement of index load
-func BenchmarkIndexLoad(b *testing.B) {
+// BenchmarkOpenIndex for iterative improvement of index load
+func BenchmarkOpenIndex(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		b.StopTimer()
 		f, err := os.Open("testdata/words.data")

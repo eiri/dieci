@@ -35,6 +35,7 @@ func (dl *Datalog) ReadAt(data []byte, off int64) (int, error) {
 		return 0, err
 	}
 
+	// FIXME maybe push on dieci side to make checksum an optional
 	score, stored := dl.Deserialize(data)
 	check := MakeScore(stored)
 	if score != check {
