@@ -26,9 +26,15 @@ type Index struct {
 }
 
 // NewIndex returns a new index structure with the given name
-func NewIndex(reader io.Reader) (*Index, error) {
+func NewIndex() *Index {
 	cache := make(cache)
-	idx := &Index{cache: cache}
+	idx := &Index{cache: cache, cur: 0}
+	return idx
+}
+
+// Load reads given reader of datalog and fills index with its scores
+func (idx *Index) Load(reader io.Reader) error {
+	idx = NewIndex()
 	scanner := bufio.NewScanner(reader)
 	blockSize := intSize + scoreSize
 	scanner.Split(func(data []byte, eof bool) (int, []byte, error) {
@@ -50,22 +56,22 @@ func NewIndex(reader io.Reader) (*Index, error) {
 		size := int(binary.BigEndian.Uint32(block[:intSize]))
 		var score Score
 		copy(score[:], block[intSize:])
-		idx.Write(score, size+4)
+		idx.Put(score, size+4)
 	}
 	if scanner.Err() != nil {
-		return &Index{}, scanner.Err()
+		return scanner.Err()
 	}
-	return idx, nil
+	return nil
 }
 
-// Read reads address of data for a given score
-func (idx *Index) Read(score Score) (a Addr, ok bool) {
+// Get reads address of data for a given score
+func (idx *Index) Get(score Score) (a Addr, ok bool) {
 	a, ok = idx.cache[score]
 	return
 }
 
-// Write writes given score into index file and adds it to the cache
-func (idx *Index) Write(score Score, size int) {
+// Put writes given score into index file and adds it to the cache
+func (idx *Index) Put(score Score, size int) {
 	if _, ok := idx.cache[score]; !ok {
 		addr := Addr{pos: idx.cur, size: size}
 		idx.cache[score] = addr
