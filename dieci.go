@@ -8,10 +8,11 @@ import (
 
 // Store represents a data store.
 type Store struct {
-	name string
-	data *Datalog
-	dr   *os.File
-	dw   *os.File
+	name  string
+	data  *Datalog
+	index *Index
+	dr    *os.File
+	dw    *os.File
 }
 
 // Open opens provided storage
@@ -21,39 +22,58 @@ func Open(name string) (s *Store, err error) {
 	if err != nil {
 		return
 	}
-	idx, err := NewIndex(dr)
-	if err != nil {
+	idx := NewIndex()
+	if err := idx.Load(dr); err != nil {
 		dr.Close()
-		return
+		return s, err
 	}
 	dw, err := os.OpenFile(datalogName, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		dr.Close()
 		return
 	}
-	data := NewDatalog(dr, dw, idx)
+	data := NewDatalog(dr, dw)
 	s = &Store{
-		name: name,
-		data: data,
-		dr:   dr,
-		dw:   dw,
+		name:  name,
+		data:  data,
+		index: idx,
+		dr:    dr,
+		dw:    dw,
 	}
 	return
 }
 
 // Read a data for a given score
-func (s *Store) Read(score Score) (b []byte, err error) {
-	b, err = s.data.Get(score)
-	if score != MakeScore(b) {
-		b = nil
-		err = fmt.Errorf("dieci: checksum failure")
+func (s *Store) Read(score Score) ([]byte, error) {
+	addr, ok := s.index.Get(score)
+	if !ok {
+		err := fmt.Errorf("dieci: unknown score %s", score)
+		return nil, err
 	}
-	return
+	buf := make([]byte, addr.size)
+	if _, err := s.data.ReadAt(buf, int64(addr.pos)); err != nil {
+		return nil, err
+	}
+	check, data := s.data.Deserialize(buf)
+	if check != score {
+		err := fmt.Errorf("dieci: checksum failure")
+		return nil, err
+	}
+	return data, nil
 }
 
 // Write given data and return it's score
-func (s *Store) Write(b []byte) (score Score, err error) {
-	return s.data.Put(b)
+func (s *Store) Write(data []byte) (Score, error) {
+	score := MakeScore(data)
+	if _, ok := s.index.Get(score); ok {
+		return score, nil
+	}
+	size, err := s.data.Write(data)
+	if err != nil {
+		return Score{}, err
+	}
+	s.index.Put(score, size)
+	return score, nil
 }
 
 // Close provided storage
