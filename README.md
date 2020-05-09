@@ -30,6 +30,6 @@ Index:   +-----------+----------+----------+-----------+---
 
 ```
 
-## Licence
+## License
 
 [MIT](https://github.com/eiri/dieci/blob/master/LICENSE)
