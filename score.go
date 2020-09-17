@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 
-	"github.com/cespare/xxhash"
+	"github.com/OneOfOne/xxhash"
 )
 
 // scoreSize is the size of score in bytes
@@ -19,7 +19,7 @@ func (s Score) String() string {
 
 // MakeScore creates a score for a given data block
 func MakeScore(b []byte) Score {
-	sum := xxhash.Sum64(b)
+	sum := xxhash.Checksum64(b)
 	score := Score{}
 	binary.BigEndian.PutUint64(score[:], sum)
 	return score
