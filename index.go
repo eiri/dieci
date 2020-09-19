@@ -21,21 +21,21 @@ type cache map[Score]Addr
 
 // Index represents an index of a datalog file
 type Index struct {
-	cache cache
-	cur   int
+	cache     cache
+	size, cur int
 }
 
 // NewIndex returns a new index structure with the given name
 func NewIndex() *Index {
 	cache := make(cache)
-	idx := &Index{cache: cache, cur: 0}
+	idx := &Index{cache: cache, size: 0, cur: 0}
 	return idx
 }
 
 // Load reads given reader of datalog and fills index with its scores
 func (idx *Index) Load(reader io.Reader) error {
 	idx.cache = make(cache)
-	idx.cur = 0
+	idx.cur, idx.size = 0, 0
 	scanner := bufio.NewScanner(reader)
 	blockSize := intSize + scoreSize
 	scanner.Split(func(data []byte, eof bool) (int, []byte, error) {
@@ -75,11 +75,12 @@ func (idx *Index) Put(score Score, size int) {
 	if _, ok := idx.cache[score]; !ok {
 		addr := Addr{pos: idx.cur, size: size}
 		idx.cache[score] = addr
+		idx.size++
 		idx.cur = addr.pos + addr.size
 	}
 }
 
 // Len returns current length of cache
 func (idx *Index) Len() int {
-	return len(idx.cache)
+	return idx.size
 }
