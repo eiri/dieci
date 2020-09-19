@@ -32,7 +32,7 @@ func TestIndex(t *testing.T) {
 
 	t.Run("NewIndex", func(t *testing.T) {
 		idx := NewIndex()
-		assert.Len(idx.cache, 0)
+		assert.Equal(0, idx.size)
 		assert.Equal(0, idx.cur)
 	})
 
