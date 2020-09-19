@@ -55,9 +55,8 @@ func (idx *Index) Load(reader io.Reader) error {
 	for scanner.Scan() {
 		block := scanner.Bytes()
 		size := int(binary.BigEndian.Uint32(block[:intSize]))
-		var score Score
-		copy(score[:], block[intSize:])
-		idx.Put(score, size+4)
+		sum := binary.BigEndian.Uint64(block[intSize:])
+		idx.Put(Score(sum), size+intSize)
 	}
 	if scanner.Err() != nil {
 		return scanner.Err()

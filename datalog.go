@@ -70,14 +70,13 @@ func (dl *Datalog) Serialize(score Score, data []byte) []byte {
 	size := scoreSize + len(data)
 	buf := make([]byte, intSize+size)
 	binary.BigEndian.PutUint32(buf, uint32(size))
-	copy(buf[intSize:], score[:])
+	binary.BigEndian.PutUint64(buf[intSize:], uint64(score))
 	copy(buf[intSize+scoreSize:], data)
 	return buf
 }
 
 // Deserialize read block to score and its data
 func (dl *Datalog) Deserialize(data []byte) (Score, []byte) {
-	score := Score{}
-	copy(score[:], data[intSize:])
-	return score, data[intSize+scoreSize:]
+	sum := binary.BigEndian.Uint64(data[intSize:])
+	return Score(sum), data[intSize+scoreSize:]
 }
