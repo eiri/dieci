@@ -70,7 +70,7 @@ func (s *Store) Write(data []byte) (Score, error) {
 	}
 	size, err := s.data.Write(data)
 	if err != nil {
-		return Score{}, err
+		return score, err
 	}
 	s.index.Put(score, size)
 	return score, nil

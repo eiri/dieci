@@ -68,7 +68,7 @@ func TestDataLog(t *testing.T) {
 		dw := bytes.NewBuffer([]byte{})
 		dl := NewDatalog(dr, dw)
 		for _, tt := range datalogtests {
-			score := Score{}
+			var score Score
 			data := []byte(tt.in)
 			serialized := dl.Serialize(score, data)
 			assert.NotEqual(data, serialized)
