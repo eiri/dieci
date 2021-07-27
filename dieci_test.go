@@ -23,7 +23,7 @@ func TestDieci(t *testing.T) {
 		[]byte("hotel"),
 	}
 
-	scores := make([]dieci.Score, len(values))
+	scores := make([][]byte, len(values))
 
 	assert := require.New(t)
 
@@ -44,7 +44,7 @@ func TestDieci(t *testing.T) {
 		for i, value := range values {
 			score, err := ds.Write(value)
 			assert.NoError(err)
-			scores[i] = score
+			scores[i] = []byte(score)
 			// test deduplication
 			score2, err := ds.Write(value)
 			assert.NoError(err)
