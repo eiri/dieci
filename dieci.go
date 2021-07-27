@@ -2,17 +2,8 @@
 package dieci
 
 import (
-	"encoding/binary"
-
-	"github.com/cespare/xxhash"
 	badger "github.com/dgraph-io/badger/v3"
 )
-
-const (
-	intSize = 8
-)
-
-type Score []byte
 
 // Store represents a data store.
 type Store struct {
@@ -33,37 +24,27 @@ func Open(name string) (s *Store, err error) {
 }
 
 // Read a data for a given score
-func (s *Store) Read(score Score) ([]byte, error) {
-	data := make([]byte, 0)
+func (s *Store) Read(sc []byte) ([]byte, error) {
+	var data []byte
 	err := s.db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(score)
-		if err != nil {
-			return err
-		}
-
-		err = item.Value(func(val []byte) error {
-			data = append(data, val...)
-			return nil
-		})
+		var err error
+		dl := newDatalog(txn)
+		data, err = dl.read(sc)
 		return err
 	})
 	return data, err
 }
 
 // Write given data and return it's score
-func (s *Store) Write(data []byte) (Score, error) {
-	h := xxhash.Sum64(data)
-	score := make([]byte, intSize)
-	binary.BigEndian.PutUint64(score, h)
+func (s *Store) Write(data []byte) ([]byte, error) {
+	var sc []byte
 	err := s.db.Update(func(txn *badger.Txn) error {
-		e := badger.NewEntry(score, data)
-		err := txn.SetEntry(e)
+		var err error
+		dl := newDatalog(txn)
+		sc, err = dl.write(data)
 		return err
 	})
-	if err != nil {
-		return []byte{}, err
-	}
-	return score, nil
+	return sc, err
 }
 
 // Close provided storage
