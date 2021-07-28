@@ -15,9 +15,9 @@ func newDatalog(txn *badger.Txn) *datalog {
 }
 
 // read is a read callback
-func (dl *datalog) read(score score) ([]byte, error) {
+func (dl *datalog) read(sc score) ([]byte, error) {
 	data := make([]byte, 0)
-	item, err := dl.txn.Get(score)
+	item, err := dl.txn.Get(sc)
 	if err != nil {
 		return data, err
 	}
@@ -31,13 +31,13 @@ func (dl *datalog) read(score score) ([]byte, error) {
 
 // write is a write callback
 func (dl *datalog) write(data []byte) (score, error) {
-	s := dl.score(data)
-	e := badger.NewEntry(s, data)
+	sc := dl.score(data)
+	e := badger.NewEntry(sc, data)
 	err := dl.txn.SetEntry(e)
 	if err != nil {
 		return score([]byte{}), err
 	}
-	return s, nil
+	return sc, nil
 }
 
 // Score returns a score for given data
