@@ -35,7 +35,7 @@ func TestIndex(t *testing.T) {
 		defer txn.Discard()
 		idx := newIndex(txn)
 		for i, value := range values {
-			sc := makeScore(value)
+			sc := newScore(value)
 			key1, err := idx.write(sc)
 			assert.NoError(err)
 			keys[i] = key1
@@ -54,7 +54,7 @@ func TestIndex(t *testing.T) {
 		defer txn.Discard()
 		idx := newIndex(txn)
 		for i, value := range values {
-			expectedScore := makeScore(value)
+			expectedScore := newScore(value)
 			sc1, err := idx.read(keys[i])
 			assert.NoError(err)
 			assert.Equal(expectedScore, sc1)

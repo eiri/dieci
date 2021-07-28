@@ -1,8 +1,36 @@
 package dieci
 
 import (
+	"encoding/binary"
+	"encoding/hex"
+
+	"github.com/cespare/xxhash"
 	badger "github.com/dgraph-io/badger/v3"
 )
+
+// scoreSize is the size of score in bytes
+const scoreSize = 8
+
+// score is a type alias for score representation
+type score []byte
+
+func newScore(data []byte) score {
+	h := xxhash.Sum64(data)
+	sc := make([]byte, scoreSize)
+	binary.BigEndian.PutUint64(sc, h)
+	return score(sc)
+}
+
+// String added to comply with Stringer interface
+func (s score) String() string {
+	return hex.EncodeToString(s)
+}
+
+// uint64 returns original xxhash sum64 for a given score
+func (s score) uint64() uint64 {
+	h := binary.BigEndian.Uint64(s)
+	return h
+}
 
 // datalog represents a datastore's datalog
 type datalog struct {
@@ -31,16 +59,11 @@ func (dl *datalog) read(sc score) ([]byte, error) {
 
 // write is a write callback
 func (dl *datalog) write(data []byte) (score, error) {
-	sc := dl.score(data)
+	sc := newScore(data)
 	e := badger.NewEntry(sc, data)
 	err := dl.txn.SetEntry(e)
 	if err != nil {
-		return score([]byte{}), err
+		return score{}, err
 	}
 	return sc, nil
-}
-
-// Score returns a score for given data
-func (dl *datalog) score(data []byte) score {
-	return makeScore(data)
 }
