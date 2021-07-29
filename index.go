@@ -5,6 +5,7 @@ import (
 
 	badger "github.com/dgraph-io/badger/v3"
 	"github.com/muyo/sno"
+	art "github.com/plar/go-adaptive-radix-tree"
 )
 
 // key is an alias for key representaion
@@ -19,7 +20,7 @@ func (k key) String() string {
 }
 
 // cache is in memory lookup store
-type cache map[string]score
+type cache art.Tree
 
 // index represents an index of a datalog file
 type index struct {
@@ -30,7 +31,7 @@ type index struct {
 
 // newIndex returns a new index
 func newIndex(txn *badger.Txn) *index {
-	cache := make(cache)
+	cache := art.New()
 	gen, err := sno.NewGenerator(&sno.GeneratorSnapshot{
 		Partition: sno.Partition{0, 0},
 	}, nil)
@@ -43,8 +44,8 @@ func newIndex(txn *badger.Txn) *index {
 
 // read is a read callback
 func (i *index) read(k key) (score, error) {
-	if sc, ok := i.cache[k.String()]; ok {
-		return sc, nil
+	if sc, ok := i.cache.Search(art.Key(k)); ok {
+		return sc.(score), nil
 	}
 
 	var sc score
@@ -57,7 +58,7 @@ func (i *index) read(k key) (score, error) {
 		return nil
 	})
 	if err == nil {
-		i.cache[k.String()] = sc
+		i.cache.Insert(art.Key(k), sc)
 	}
 	return sc, err
 }
@@ -70,6 +71,6 @@ func (i *index) write(sc score) (key, error) {
 	if err != nil {
 		return key{}, err
 	}
-	i.cache[k.String()] = sc
+	i.cache.Insert(art.Key(k), sc)
 	return k, nil
 }
