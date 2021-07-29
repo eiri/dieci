@@ -16,7 +16,7 @@ bench:
 	go test -bench=. -benchmem
 
 .PHONY: clean
-clean: clean-data ## clean up
+clean:
 	go clean
 	rm -f coverage.out
 	rm -f *.bench
