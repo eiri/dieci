@@ -60,8 +60,13 @@ func (dl *datalog) read(sc score) ([]byte, error) {
 // write is a write callback
 func (dl *datalog) write(data []byte) (score, error) {
 	sc := newScore(data)
+	_, err := dl.txn.Get(sc)
+	if err == nil {
+		return sc, nil
+	}
+
 	e := badger.NewEntry(sc, data)
-	err := dl.txn.SetEntry(e)
+	err = dl.txn.SetEntry(e)
 	if err != nil {
 		return score{}, err
 	}
