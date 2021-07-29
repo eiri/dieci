@@ -24,10 +24,15 @@ func Open(name string) (s *Store, err error) {
 }
 
 // Read a data for a given score
-func (s *Store) Read(sc []byte) ([]byte, error) {
+func (s *Store) Read(key []byte) ([]byte, error) {
 	var data []byte
 	err := s.db.View(func(txn *badger.Txn) error {
 		var err error
+		idx := newIndex(txn)
+		sc, err := idx.read(key)
+		if err != nil {
+			return err
+		}
 		dl := newDatalog(txn)
 		data, err = dl.read(sc)
 		return err
@@ -37,14 +42,19 @@ func (s *Store) Read(sc []byte) ([]byte, error) {
 
 // Write given data and return it's score
 func (s *Store) Write(data []byte) ([]byte, error) {
-	var sc []byte
+	var key []byte
 	err := s.db.Update(func(txn *badger.Txn) error {
 		var err error
 		dl := newDatalog(txn)
-		sc, err = dl.write(data)
+		sc, err := dl.write(data)
+		if err != nil {
+			return err
+		}
+		idx := newIndex(txn)
+		key, err = idx.write(sc)
 		return err
 	})
-	return sc, err
+	return key, err
 }
 
 // Close provided storage
