@@ -1,23 +1,9 @@
 package dieci
 
 import (
-	"encoding/hex"
-
 	badger "github.com/dgraph-io/badger/v3"
-	"github.com/muyo/sno"
 	art "github.com/plar/go-adaptive-radix-tree"
 )
-
-// key is an alias for key representaion
-type key []byte
-
-func newKey() key {
-	return sno.New(0).Bytes()
-}
-
-func (k key) String() string {
-	return hex.EncodeToString(k)
-}
 
 // cache is in memory lookup store
 type cache art.Tree
@@ -25,21 +11,13 @@ type cache art.Tree
 // index represents an index of a datalog file
 type index struct {
 	cache cache
-	gen   *sno.Generator
 	txn   *badger.Txn
 }
 
 // newIndex returns a new index
 func newIndex(txn *badger.Txn) *index {
 	cache := art.New()
-	gen, err := sno.NewGenerator(&sno.GeneratorSnapshot{
-		Partition: sno.Partition{0, 0},
-	}, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	return &index{cache: cache, gen: gen, txn: txn}
+	return &index{cache: cache, txn: txn}
 }
 
 // read is a read callback
