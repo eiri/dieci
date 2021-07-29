@@ -45,11 +45,6 @@ func TestDieci(t *testing.T) {
 			score, err := ds.Write(value)
 			assert.NoError(err)
 			scores[i] = []byte(score)
-			// test deduplication
-			score2, err := ds.Write(value)
-			assert.NoError(err)
-			assert.Equal(score, score2, "Should return consistent score")
-			// TODO validate db size
 		}
 	})
 

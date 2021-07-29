@@ -1,19 +1,25 @@
 package dieci
 
 import (
+	"encoding/hex"
+
 	badger "github.com/dgraph-io/badger/v3"
 	"github.com/muyo/sno"
 )
 
-// key is an alias for sno's ID
-type key sno.ID
+// key is an alias for key representaion
+type key []byte
 
-func (k key) bytes() []byte {
-	return sno.ID(k).Bytes()
+func newKey() key {
+	return sno.New(0).Bytes()
+}
+
+func (k key) String() string {
+	return hex.EncodeToString(k)
 }
 
 // cache is in memory lookup store
-type cache map[key]score
+type cache map[string]score
 
 // index represents an index of a datalog file
 type index struct {
@@ -37,12 +43,12 @@ func newIndex(txn *badger.Txn) *index {
 
 // read is a read callback
 func (i *index) read(k key) (score, error) {
-	if sc, ok := i.cache[k]; ok {
+	if sc, ok := i.cache[k.String()]; ok {
 		return sc, nil
 	}
 
 	var sc score
-	item, err := i.txn.Get(k.bytes())
+	item, err := i.txn.Get(k)
 	if err != nil {
 		return sc, err
 	}
@@ -51,25 +57,19 @@ func (i *index) read(k key) (score, error) {
 		return nil
 	})
 	if err == nil {
-		i.cache[k] = sc
+		i.cache[k.String()] = sc
 	}
 	return sc, err
 }
 
 // write is a write callback
 func (i *index) write(sc score) (key, error) {
-	k := i.key()
-	e := badger.NewEntry(k.bytes(), sc)
+	k := newKey()
+	e := badger.NewEntry(k, sc)
 	err := i.txn.SetEntry(e)
 	if err != nil {
 		return key{}, err
 	}
-	i.cache[k] = sc
+	i.cache[k.String()] = sc
 	return k, nil
-}
-
-// key generates new sno ID and converts it to key struct
-func (i *index) key() key {
-	id := i.gen.New(0)
-	return key(id)
 }
