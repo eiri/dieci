@@ -1,54 +1,44 @@
 package dieci
 
 import (
-	badger "github.com/dgraph-io/badger/v3"
 	art "github.com/plar/go-adaptive-radix-tree"
 )
 
 // cache is in memory lookup store
 type cache art.Tree
 
-// index represents an index of a datalog file
-type index struct {
-	cache cache
-	txn   *badger.Txn
+// Index represents an index of a datalog file
+type Index struct {
+	cache   cache
+	backend Backend
 }
 
-// newIndex returns a new index
-func newIndex(txn *badger.Txn) *index {
+// NewIndex returns a new index
+func NewIndex(b Backend) *Index {
 	cache := art.New()
-	return &index{cache: cache, txn: txn}
+	return &Index{cache: cache, backend: b}
 }
 
 // read is a read callback
-func (i *index) read(k key) (score, error) {
-	if sc, ok := i.cache.Search(art.Key(k)); ok {
-		return sc.(score), nil
+func (idx *Index) read(k key) (score, error) {
+	if sc, ok := idx.cache.Search(art.Key(k)); ok {
+		return sc.([]byte), nil
 	}
 
-	var sc score
-	item, err := i.txn.Get(k)
-	if err != nil {
-		return sc, err
-	}
-	err = item.Value(func(val []byte) error {
-		sc = append(sc, val...)
-		return nil
-	})
+	sc, err := idx.backend.Read(k)
 	if err == nil {
-		i.cache.Insert(art.Key(k), sc)
+		idx.cache.Insert(art.Key(k), sc)
 	}
 	return sc, err
 }
 
 // write is a write callback
-func (i *index) write(sc score) (key, error) {
+func (idx *Index) write(sc score) (key, error) {
 	k := newKey()
-	e := badger.NewEntry(k, sc)
-	err := i.txn.SetEntry(e)
+	err := idx.backend.Write(k, sc)
 	if err != nil {
 		return key{}, err
 	}
-	i.cache.Insert(art.Key(k), sc)
+	idx.cache.Insert(art.Key(k), sc)
 	return k, nil
 }
