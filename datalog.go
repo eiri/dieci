@@ -1,44 +1,24 @@
 package dieci
 
-import (
-	badger "github.com/dgraph-io/badger/v3"
-)
-
-// datalog represents a datastore's datalog
-type datalog struct {
-	txn *badger.Txn
+// Datalog represents a datastore's datalog
+type Datalog struct {
+	backend Backend
 }
 
-// newDatalog returns a new datalog for a given transaction
-func newDatalog(txn *badger.Txn) *datalog {
-	return &datalog{txn: txn}
+// NewDatalog returns a new datalog for a given transaction
+func NewDatalog(b Backend) *Datalog {
+	return &Datalog{backend: b}
 }
 
 // read is a read callback
-func (dl *datalog) read(sc score) ([]byte, error) {
-	data := make([]byte, 0)
-	item, err := dl.txn.Get(sc)
-	if err != nil {
-		return data, err
-	}
-
-	err = item.Value(func(val []byte) error {
-		data = append(data, val...)
-		return nil
-	})
-	return data, err
+func (dl *Datalog) read(sc score) ([]byte, error) {
+	return dl.backend.Read(sc)
 }
 
 // write is a write callback
-func (dl *datalog) write(data []byte) (score, error) {
+func (dl *Datalog) write(data []byte) (score, error) {
 	sc := newScore(data)
-	_, err := dl.txn.Get(sc)
-	if err == nil {
-		return sc, nil
-	}
-
-	e := badger.NewEntry(sc, data)
-	err = dl.txn.SetEntry(e)
+	err := dl.backend.Write(sc, data)
 	if err != nil {
 		return score{}, err
 	}

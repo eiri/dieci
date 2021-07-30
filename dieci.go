@@ -34,7 +34,7 @@ func (s *Store) Read(key []byte) ([]byte, error) {
 		if err != nil {
 			return err
 		}
-		dl := newDatalog(txn)
+		dl := NewDatalog(b)
 		data, err = dl.read(sc)
 		return err
 	})
@@ -47,7 +47,7 @@ func (s *Store) Write(data []byte) ([]byte, error) {
 	err := s.db.Update(func(txn *badger.Txn) error {
 		var err error
 		b := NewBadgerBackend(txn)
-		dl := newDatalog(txn)
+		dl := NewDatalog(b)
 		sc, err := dl.write(data)
 		if err != nil {
 			return err
