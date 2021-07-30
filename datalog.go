@@ -18,6 +18,12 @@ func (dl *Datalog) read(sc score) ([]byte, error) {
 // write is a write callback
 func (dl *Datalog) write(data []byte) (score, error) {
 	sc := newScore(data)
+	if ok, err := dl.backend.Exists(sc); ok {
+		return sc, nil
+	} else if err != nil {
+		return score{}, err
+	}
+
 	err := dl.backend.Write(sc, data)
 	if err != nil {
 		return score{}, err
