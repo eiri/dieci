@@ -33,7 +33,8 @@ func TestDataLog(t *testing.T) {
 	t.Run("write", func(t *testing.T) {
 		txn := db.NewTransaction(true)
 		defer txn.Discard()
-		dl := newDatalog(txn)
+		b := NewBadgerBackend(txn)
+		dl := NewDatalog(b)
 		for i, value := range values {
 			score1, err := dl.write(value)
 			assert.NoError(err)
@@ -50,7 +51,8 @@ func TestDataLog(t *testing.T) {
 	t.Run("read", func(t *testing.T) {
 		txn := db.NewTransaction(true)
 		defer txn.Discard()
-		dl := newDatalog(txn)
+		b := NewBadgerBackend(txn)
+		dl := NewDatalog(b)
 		for i, s := range scores {
 			value, err := dl.read(s)
 			assert.NoError(err)
