@@ -33,7 +33,8 @@ func TestIndex(t *testing.T) {
 	t.Run("write", func(t *testing.T) {
 		txn := db.NewTransaction(true)
 		defer txn.Discard()
-		idx := newIndex(txn)
+		b := NewBadgerBackend(txn)
+		idx := NewIndex(b)
 		for i, value := range values {
 			sc := newScore(value)
 			key1, err := idx.write(sc)
@@ -42,7 +43,7 @@ func TestIndex(t *testing.T) {
 			// test new key on same score
 			key2, err := idx.write(sc)
 			assert.NoError(err)
-			assert.NotEqual(key1, key2, "Should return condifferent keys")
+			assert.NotEqual(key1, key2, "Should return different keys")
 			keys[i+len(values)] = key2
 		}
 		err = txn.Commit()
@@ -52,7 +53,8 @@ func TestIndex(t *testing.T) {
 	t.Run("read", func(t *testing.T) {
 		txn := db.NewTransaction(true)
 		defer txn.Discard()
-		idx := newIndex(txn)
+		b := NewBadgerBackend(txn)
+		idx := NewIndex(b)
 		for i, value := range values {
 			expectedScore := newScore(value)
 			sc1, err := idx.read(keys[i])

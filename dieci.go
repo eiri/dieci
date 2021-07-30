@@ -28,7 +28,8 @@ func (s *Store) Read(key []byte) ([]byte, error) {
 	var data []byte
 	err := s.db.View(func(txn *badger.Txn) error {
 		var err error
-		idx := newIndex(txn)
+		b := NewBadgerBackend(txn)
+		idx := NewIndex(b)
 		sc, err := idx.read(key)
 		if err != nil {
 			return err
@@ -45,12 +46,13 @@ func (s *Store) Write(data []byte) ([]byte, error) {
 	var key []byte
 	err := s.db.Update(func(txn *badger.Txn) error {
 		var err error
+		b := NewBadgerBackend(txn)
 		dl := newDatalog(txn)
 		sc, err := dl.write(data)
 		if err != nil {
 			return err
 		}
-		idx := newIndex(txn)
+		idx := NewIndex(b)
 		key, err = idx.write(sc)
 		return err
 	})
