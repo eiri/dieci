@@ -22,7 +22,7 @@ func TestDataLog(t *testing.T) {
 		[]byte("hotel"),
 	}
 
-	scores := make([]score, len(values))
+	scores := make([]Score, len(values))
 
 	opts := badger.DefaultOptions("").WithInMemory(true)
 	opts.Logger = nil
@@ -36,11 +36,11 @@ func TestDataLog(t *testing.T) {
 		b := NewBadgerBackend(txn)
 		dl := NewDatalog(b)
 		for i, value := range values {
-			score1, err := dl.write(value)
+			score1, err := dl.Write(value)
 			assert.NoError(err)
 			scores[i] = score1
 			// test deduplication
-			score2, err := dl.write(value)
+			score2, err := dl.Write(value)
 			assert.NoError(err)
 			assert.Equal(score1, score2, "Should return consistent score")
 		}
@@ -54,7 +54,7 @@ func TestDataLog(t *testing.T) {
 		b := NewBadgerBackend(txn)
 		dl := NewDatalog(b)
 		for i, s := range scores {
-			value, err := dl.read(s)
+			value, err := dl.Read(s)
 			assert.NoError(err)
 			assert.Equal(values[i], value)
 		}

@@ -10,23 +10,23 @@ func NewDatalog(b Backend) *Datalog {
 	return &Datalog{backend: b}
 }
 
-// read is a read callback
-func (dl *Datalog) read(sc score) ([]byte, error) {
-	return dl.backend.Read(sc)
+// Read is a read callback
+func (dl *Datalog) Read(score Score) ([]byte, error) {
+	return dl.backend.Read(score)
 }
 
-// write is a write callback
-func (dl *Datalog) write(data []byte) (score, error) {
-	sc := newScore(data)
-	if ok, err := dl.backend.Exists(sc); ok {
-		return sc, nil
+// Write is a write callback
+func (dl *Datalog) Write(data []byte) (Score, error) {
+	score := NewScore(data)
+	if ok, err := dl.backend.Exists(score); ok {
+		return score, nil
 	} else if err != nil {
-		return score{}, err
+		return Score{}, err
 	}
 
-	err := dl.backend.Write(sc, data)
+	err := dl.backend.Write(score, data)
 	if err != nil {
-		return score{}, err
+		return Score{}, err
 	}
-	return sc, nil
+	return score, nil
 }
