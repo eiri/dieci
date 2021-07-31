@@ -9,10 +9,10 @@ import (
 
 // TestKey to ensure we can generate keys
 func TestKey(t *testing.T) {
-	key0 := newKey()
+	key0 := NewKey()
 	for i := 0; i < 10; i++ {
-		key1 := newKey()
-		key2 := newKey()
+		key1 := NewKey()
+		key2 := NewKey()
 
 		assert.NotEqual(t, key0, key1)
 		assert.Greater(t, key1.String(), key0.String())
