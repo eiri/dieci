@@ -6,13 +6,16 @@ import (
 	"github.com/muyo/sno"
 )
 
-// key is an alias for key representaion
-type key []byte
+// Key is an alias for key representaion
+type Key []byte
 
-func newKey() key {
+// NewKey generates and returns new key
+func NewKey() Key {
 	return sno.New(0).Bytes()
 }
 
-func (k key) String() string {
+// String returns a string representation for the key
+// to comply with Stringer interface
+func (k Key) String() string {
 	return hex.EncodeToString(k)
 }

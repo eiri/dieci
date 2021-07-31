@@ -20,25 +20,25 @@ func NewIndex(b Backend) *Index {
 }
 
 // Read is a read callback
-func (idx *Index) Read(k key) (Score, error) {
-	if score, ok := idx.cache.Search(art.Key(k)); ok {
+func (idx *Index) Read(key Key) (Score, error) {
+	if score, ok := idx.cache.Search(art.Key(key)); ok {
 		return score.([]byte), nil
 	}
 
-	score, err := idx.backend.Read(k)
+	score, err := idx.backend.Read(key)
 	if err == nil {
-		idx.cache.Insert(art.Key(k), score)
+		idx.cache.Insert(art.Key(key), score)
 	}
 	return score, err
 }
 
 // Write is a write callback
-func (idx *Index) Write(score Score) (key, error) {
-	k := newKey()
-	err := idx.backend.Write(k, score)
+func (idx *Index) Write(score Score) (Key, error) {
+	key := NewKey()
+	err := idx.backend.Write(key, score)
 	if err != nil {
-		return key{}, err
+		return Key{}, err
 	}
-	idx.cache.Insert(art.Key(k), score)
-	return k, nil
+	idx.cache.Insert(art.Key(key), score)
+	return key, nil
 }

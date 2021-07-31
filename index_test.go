@@ -22,7 +22,7 @@ func TestIndex(t *testing.T) {
 		[]byte("hotel"),
 	}
 
-	keys := make([]key, 2*len(values))
+	keys := make([]Key, 2*len(values))
 
 	opts := badger.DefaultOptions("").WithInMemory(true)
 	opts.Logger = nil
