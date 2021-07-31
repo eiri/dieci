@@ -10,23 +10,24 @@ import (
 // scoreSize is the size of score in bytes
 const scoreSize = 8
 
-// score is a type alias for score representation
-type score []byte
+// Score is a type alias for score representation
+type Score []byte
 
-func newScore(data []byte) score {
+// NewScore returns a new score for a given data
+func NewScore(data []byte) Score {
 	h := xxhash.Sum64(data)
 	sc := make([]byte, scoreSize)
 	binary.BigEndian.PutUint64(sc, h)
-	return score(sc)
+	return Score(sc)
 }
 
 // String added to comply with Stringer interface
-func (s score) String() string {
+func (s Score) String() string {
 	return hex.EncodeToString(s)
 }
 
-// uint64 returns original xxhash sum64 for a given score
-func (s score) uint64() uint64 {
+// Uint64 returns original xxhash sum64 for a given score
+func (s Score) Uint64() uint64 {
 	h := binary.BigEndian.Uint64(s)
 	return h
 }

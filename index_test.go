@@ -36,12 +36,12 @@ func TestIndex(t *testing.T) {
 		b := NewBadgerBackend(txn)
 		idx := NewIndex(b)
 		for i, value := range values {
-			sc := newScore(value)
-			key1, err := idx.write(sc)
+			score := NewScore(value)
+			key1, err := idx.Write(score)
 			assert.NoError(err)
 			keys[i] = key1
 			// test new key on same score
-			key2, err := idx.write(sc)
+			key2, err := idx.Write(score)
 			assert.NoError(err)
 			assert.NotEqual(key1, key2, "Should return different keys")
 			keys[i+len(values)] = key2
@@ -56,18 +56,18 @@ func TestIndex(t *testing.T) {
 		b := NewBadgerBackend(txn)
 		idx := NewIndex(b)
 		for i, value := range values {
-			expectedScore := newScore(value)
-			sc1, err := idx.read(keys[i])
+			expectedScore := NewScore(value)
+			score1, err := idx.Read(keys[i])
 			assert.NoError(err)
-			assert.Equal(expectedScore, sc1)
+			assert.Equal(expectedScore, score1)
 			// second read from cache
-			sc2, err := idx.read(keys[i])
+			score2, err := idx.Read(keys[i])
 			assert.NoError(err)
-			assert.Equal(expectedScore, sc2)
+			assert.Equal(expectedScore, score2)
 			// read from double entry
-			sc3, err := idx.read(keys[i+len(values)])
+			score3, err := idx.Read(keys[i+len(values)])
 			assert.NoError(err)
-			assert.Equal(expectedScore, sc3)
+			assert.Equal(expectedScore, score3)
 		}
 	})
 }
