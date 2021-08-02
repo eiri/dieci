@@ -1,7 +1,11 @@
 package dieci
 
 import (
+	"bytes"
+	"io"
+
 	"github.com/bits-and-blooms/bloom/v3"
+	"github.com/golang/snappy"
 )
 
 // Datalog represents a datastore's datalog
@@ -18,11 +22,18 @@ func NewDatalog(b Backend) *Datalog {
 
 // Read is a read callback
 func (dl *Datalog) Read(score Score) ([]byte, error) {
-	data, err := dl.backend.Read(score)
+	b, err := dl.backend.Read(score)
 	if err == nil && !dl.filter.Test(score) {
 		dl.filter.Add(score)
 	}
-	return data, err
+	// decompress
+	var data bytes.Buffer
+	r := snappy.NewReader(bytes.NewReader(b))
+	if _, err := io.Copy(&data, r); err != nil {
+		return []byte{}, err
+	}
+
+	return data.Bytes(), err
 }
 
 // Write is a write callback
@@ -38,9 +49,16 @@ func (dl *Datalog) Write(data []byte) (Score, error) {
 			return Score{}, err
 		}
 	}
+	// compress
+	var b bytes.Buffer
+	w := snappy.NewBufferedWriter(&b)
+	if _, err := w.Write(data); err != nil {
+		return Score{}, err
+	}
+	w.Close()
 	// this might be an idempotent update if this is a fresh start
 	// and score is not yet in filter
-	err := dl.backend.Write(score, data)
+	err := dl.backend.Write(score, b.Bytes())
 	if err != nil {
 		return Score{}, err
 	}
