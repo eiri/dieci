@@ -11,13 +11,15 @@ import (
 // Datalog represents a datastore's datalog
 type Datalog struct {
 	filter  *bloom.BloomFilter
+	pki     *PKI
 	backend Backend
 }
 
 // NewDatalog returns a new datalog for a given transaction
-func NewDatalog(b Backend) *Datalog {
+func NewDatalog(backend Backend) *Datalog {
 	f := bloom.New(20000, 5)
-	return &Datalog{filter: f, backend: b}
+	pki := NewPKI(backend)
+	return &Datalog{filter: f, pki: pki, backend: backend}
 }
 
 // Read is a read callback
@@ -26,8 +28,12 @@ func (dl *Datalog) Read(score Score) ([]byte, error) {
 	if err == nil && !dl.filter.Test(score) {
 		dl.filter.Add(score)
 	}
-	data1, err := decompress(data)
-	return data1, err
+	data1, err := dl.pki.Decrypt(data)
+	if err != nil {
+		return []byte{}, err
+	}
+	data2, err := decompress(data1)
+	return data2, err
 }
 
 // Write is a write callback
@@ -47,9 +53,13 @@ func (dl *Datalog) Write(data []byte) (Score, error) {
 	if err != nil {
 		return Score{}, err
 	}
+	data2, err := dl.pki.Encrypt(data1)
+	if err != nil {
+		return Score{}, err
+	}
 	// this might be an idempotent update if this is a fresh start
 	// and score is not yet in filter
-	err = dl.backend.Write(score, data1)
+	err = dl.backend.Write(score, data2)
 	if err != nil {
 		return Score{}, err
 	}
