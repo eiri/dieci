@@ -22,6 +22,7 @@ func NewBadgerBackend(txn *badger.Txn) Backend {
 	return &BadgerBackend{txn: txn}
 }
 
+// Read reads value for a given key from Badger backend
 func (bb *BadgerBackend) Read(k []byte) ([]byte, error) {
 	v := make([]byte, 0)
 	item, err := bb.txn.Get(k)
@@ -35,6 +36,7 @@ func (bb *BadgerBackend) Read(k []byte) ([]byte, error) {
 	return v, err
 }
 
+// Exists confirms if given key exists in Badger backend
 func (bb *BadgerBackend) Exists(k []byte) (bool, error) {
 	_, err := bb.txn.Get(k)
 	if err == nil {
@@ -45,6 +47,7 @@ func (bb *BadgerBackend) Exists(k []byte) (bool, error) {
 	return false, err
 }
 
+// Write creates and writes a new KV entry into Badger backend
 func (bb *BadgerBackend) Write(k []byte, v []byte) error {
 	e := badger.NewEntry(k, v)
 	return bb.txn.SetEntry(e)

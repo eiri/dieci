@@ -4,7 +4,7 @@ import (
 	"github.com/muyo/sno"
 )
 
-// Key is an alias for key representaion
+// Key is an alias for key representation
 type Key []byte
 
 // NewKey generates and returns new key
