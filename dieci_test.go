@@ -76,7 +76,7 @@ func BenchmarkWrite(b *testing.B) {
 	defer ds.Close()
 
 	for n := 0; n < b.N; n++ {
-		docSize := 1024
+		docSize := 1024 * 1024
 		doc := make([]byte, docSize)
 		_, err = rand.Read(doc)
 		if err != nil {
