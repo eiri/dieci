@@ -26,7 +26,11 @@ func Open(name string) (s *Store, err error) {
 // Read a data for a given score
 func (s *Store) Read(key []byte) ([]byte, error) {
 	var data []byte
-	err := s.db.View(func(txn *badger.Txn) error {
+	err := ValidateKey(key)
+	if err != nil {
+		return data, err
+	}
+	err = s.db.View(func(txn *badger.Txn) error {
 		var err error
 		b := NewBadgerBackend(txn)
 		idx := NewIndex(b)

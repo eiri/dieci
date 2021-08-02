@@ -21,13 +21,14 @@ func NewIndex(b Backend) *Index {
 
 // Read is a read callback
 func (idx *Index) Read(key Key) (Score, error) {
-	if score, ok := idx.cache.Search(art.Key(key)); ok {
+	cacheKey := art.Key(key)
+	if score, ok := idx.cache.Search(cacheKey); ok {
 		return score.([]byte), nil
 	}
 
 	score, err := idx.backend.Read(key)
 	if err == nil {
-		idx.cache.Insert(art.Key(key), score)
+		idx.cache.Insert(cacheKey, score)
 	}
 	return score, err
 }
@@ -35,10 +36,11 @@ func (idx *Index) Read(key Key) (Score, error) {
 // Write is a write callback
 func (idx *Index) Write(score Score) (Key, error) {
 	key := NewKey()
+	cacheKey := art.Key(key)
 	err := idx.backend.Write(key, score)
 	if err != nil {
 		return Key{}, err
 	}
-	idx.cache.Insert(art.Key(key), score)
+	idx.cache.Insert(cacheKey, score)
 	return key, nil
 }

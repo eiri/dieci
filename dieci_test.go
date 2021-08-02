@@ -23,7 +23,7 @@ func TestDieci(t *testing.T) {
 		[]byte("hotel"),
 	}
 
-	scores := make([][]byte, len(values))
+	keys := make([]dieci.Key, len(values))
 
 	assert := require.New(t)
 
@@ -42,9 +42,9 @@ func TestDieci(t *testing.T) {
 		assert.NoError(err)
 		defer ds.Close()
 		for i, value := range values {
-			score, err := ds.Write(value)
+			key, err := ds.Write(value)
 			assert.NoError(err)
-			scores[i] = []byte(score)
+			keys[i] = key
 		}
 	})
 
@@ -52,8 +52,8 @@ func TestDieci(t *testing.T) {
 		ds, err := dieci.Open(name)
 		assert.NoError(err)
 		defer ds.Close()
-		for i, score := range scores {
-			value, err := ds.Read(score)
+		for i, key := range keys {
+			value, err := ds.Read(key)
 			assert.NoError(err)
 			assert.Equal(values[i], value)
 		}

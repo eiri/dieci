@@ -25,9 +25,3 @@ func NewScore(data []byte) Score {
 func (s Score) String() string {
 	return hex.EncodeToString(s)
 }
-
-// Uint64 returns original xxhash sum64 for a given score
-func (s Score) Uint64() uint64 {
-	h := binary.BigEndian.Uint64(s)
-	return h
-}

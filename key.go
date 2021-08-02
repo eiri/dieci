@@ -1,8 +1,6 @@
 package dieci
 
 import (
-	"encoding/hex"
-
 	"github.com/muyo/sno"
 )
 
@@ -11,11 +9,22 @@ type Key []byte
 
 // NewKey generates and returns new key
 func NewKey() Key {
-	return sno.New(0).Bytes()
+	k := sno.New(0)
+	key, _ := k.MarshalBinary()
+	return key
+}
+
+// ValidateKey attempt to decode byte slice into sno ID
+// to confirm that it's a valid key.
+func ValidateKey(data []byte) error {
+	_, err := sno.FromBinaryBytes(data)
+	return err
 }
 
 // String returns a string representation for the key
 // to comply with Stringer interface
 func (k Key) String() string {
-	return hex.EncodeToString(k)
+	key := sno.ID{}
+	key.UnmarshalBinary(k)
+	return key.String()
 }
