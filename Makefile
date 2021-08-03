@@ -13,7 +13,7 @@ test:
 
 .PHONY: bench
 bench:
-	go test -bench=. -benchmem
+	@go test -bench=. -benchmem
 
 .PHONY: clean
 clean:
