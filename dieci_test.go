@@ -1,10 +1,13 @@
 package dieci_test
 
 import (
-	"crypto/rand"
+	"bufio"
+	"io"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/eiri/dieci"
 	"github.com/stretchr/testify/require"
@@ -62,12 +65,19 @@ func TestDieci(t *testing.T) {
 
 // BenchmarkWrite for control on writes
 func BenchmarkWrite(b *testing.B) {
-	b.StopTimer()
 	name, err := ioutil.TempDir("", "dieci-bench")
 	if err != nil {
 		b.Fatal(err)
 	}
 	defer os.RemoveAll(name)
+
+	w, err := os.Open("/usr/share/dict/words")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer w.Close()
+	scanner := bufio.NewScanner(w)
+	scanner.Split(bufio.ScanWords)
 
 	ds, err := dieci.Open(name)
 	if err != nil {
@@ -75,18 +85,66 @@ func BenchmarkWrite(b *testing.B) {
 	}
 	defer ds.Close()
 
+	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		docSize := 1024 * 1024
-		doc := make([]byte, docSize)
-		_, err = rand.Read(doc)
+		if ok := scanner.Scan(); !ok {
+			b.Fatal("scan done before bench")
+		}
+		_, err = ds.Write(scanner.Bytes())
 		if err != nil {
 			b.Fatal(err)
 		}
-		b.StartTimer()
-		_, err = ds.Write(doc)
+	}
+}
+
+func BenchmarkRead(b *testing.B) {
+	name, err := ioutil.TempDir("", "dieci-bench")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer os.RemoveAll(name)
+
+	w, err := os.Open("/usr/share/dict/words")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer w.Close()
+	words := bufio.NewReader(w)
+
+	ds, err := dieci.Open(name)
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer ds.Close()
+
+	keysN := 20000
+	keys := make([]dieci.Key, 0)
+	for {
+		if len(keys) >= keysN {
+			break
+		}
+		word, _, err := words.ReadLine()
+		if err == io.EOF {
+			break
+		}
+		key, err := ds.Write(word)
 		if err != nil {
 			b.Fatal(err)
 		}
-		b.StopTimer()
+		keys = append(keys, key)
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(keys), func(i, j int) {
+		keys[i], keys[j] = keys[j], keys[i]
+	})
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		key := keys[n%keysN]
+		_, err = ds.Read(key)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
