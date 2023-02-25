@@ -10,5 +10,5 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/muyo/sno v1.2.0
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	golang.org/x/crypto v0.1.0
 )
